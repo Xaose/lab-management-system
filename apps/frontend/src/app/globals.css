@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Lavender Purple System - Based on reference */
+    --background: 262 55% 92%;
+    --background-secondary: 262 45% 88%;
+    --foreground: 262 25% 20%;
+    --foreground-secondary: 262 15% 45%;
+
+    /* Card surfaces with glassmorphism */
+    --card: 0 0% 100%;
+    --card-blur: 260 100% 98%;
+    --card-foreground: 262 25% 20%;
+
+    /* Primary purple accent */
+    --primary: 262 70% 55%;
+    --primary-dark: 262 70% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Muted backgrounds */
+    --muted: 262 40% 90%;
+    --muted-foreground: 262 15% 50%;
+
+    /* Borders and rings */
+    --border: 262 30% 85%;
+    --border-light: 262 25% 92%;
+    --ring: 262 70% 60%;
+
+    /* Status colors - soft variants */
+    --success: 142 70% 50%;
+    --success-bg: 142 60% 95%;
+    --success-foreground: 142 70% 30%;
+
+    --warning: 38 92% 58%;
+    --warning-bg: 38 100% 95%;
+    --warning-foreground: 38 92% 35%;
+
+    --error: 0 72% 58%;
+    --error-bg: 0 100% 97%;
+    --error-foreground: 0 72% 40%;
+
+    --info: 217 91% 60%;
+    --info-bg: 217 100% 97%;
+    --info-foreground: 217 91% 40%;
+
+    /* Shadows */
+    --shadow-sm: 0 2px 8px rgba(115, 93, 200, 0.06);
+    --shadow-md: 0 8px 24px rgba(115, 93, 200, 0.08);
+    --shadow-lg: 0 16px 48px rgba(115, 93, 200, 0.12);
+    --shadow-xl: 0 24px 64px rgba(115, 93, 200, 0.16);
+
+    /* Animation timings */
+    --duration-fast: 150ms;
+    --duration-base: 200ms;
+    --duration-slow: 300ms;
+    --duration-slower: 400ms;
+
+    --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  * {
+    @apply border-[hsl(var(--border))];
+  }
+
+  body {
+    @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))] antialiased;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Card with glassmorphism */
+  .dashboard-card {
+    @apply rounded-[1.5rem] border border-[hsl(var(--border-light))] bg-white/80 shadow-[var(--shadow-md)] backdrop-blur-xl transition-all duration-[var(--duration-base)] ease-[var(--ease-smooth)];
+  }
+
+  .dashboard-card-hover {
+    @apply dashboard-card hover:shadow-[var(--shadow-lg)] hover:-translate-y-1;
+  }
+
+  /* Page backgrounds with gradients */
+  .dashboard-page {
+    @apply min-h-screen bg-[radial-gradient(circle_at_20%_20%,_hsl(262_80%_88%)_0%,_transparent_50%),radial-gradient(circle_at_80%_80%,_hsl(280_70%_90%)_0%,_transparent_50%),linear-gradient(135deg,_hsl(262_60%_96%)_0%,_hsl(270_55%_94%)_100%)];
+  }
+
+  /* Fade in animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeInScale {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn var(--duration-slow) var(--ease-smooth) forwards;
+  }
+
+  .animate-fade-in-scale {
+    animation: fadeInScale var(--duration-slow) var(--ease-smooth) forwards;
+  }
+
+  .animate-slide-in {
+    animation: slideInRight var(--duration-slow) var(--ease-smooth) forwards;
+  }
+
+  /* Staggered animation delays */
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+  .stagger-5 { animation-delay: 250ms; }
+  .stagger-6 { animation-delay: 300ms; }
+
+  /* Loading skeleton */
+  .skeleton {
+    @apply relative overflow-hidden rounded-xl bg-gradient-to-r from-[hsl(var(--muted))] via-white/60 to-[hsl(var(--muted))];
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+  }
+
+  /* Focus visible styles */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background))];
+  }
+
+  /* Status badges */
+  .badge-pending {
+    @apply bg-[hsl(var(--warning-bg))] text-[hsl(var(--warning-foreground))] border-amber-200/60;
+  }
+
+  .badge-accepted {
+    @apply bg-[hsl(var(--success-bg))] text-[hsl(var(--success-foreground))] border-emerald-200/60;
+  }
+
+  .badge-rejected {
+    @apply bg-[hsl(var(--error-bg))] text-[hsl(var(--error-foreground))] border-red-200/60;
+  }
+
+  .badge-review {
+    @apply bg-[hsl(var(--info-bg))] text-[hsl(var(--info-foreground))] border-blue-200/60;
+  }
+
+  /* Smooth transitions */
+  .transition-smooth {
+    transition: all var(--duration-base) var(--ease-smooth);
+  }
+
+  .transition-colors-smooth {
+    transition: color var(--duration-base) var(--ease-smooth),
+                background-color var(--duration-base) var(--ease-smooth),
+                border-color var(--duration-base) var(--ease-smooth);
+  }
+}

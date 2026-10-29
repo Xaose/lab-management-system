@@ -1,0 +1,56 @@
+import { Request, Response, NextFunction } from 'express'
+import multer from 'multer'
+
+export class AppError extends Error {
+  constructor(
+    public statusCode: number,
+    public message: string,
+    public isOperational = true
+  ) {
+    super(message)
+    Object.setPrototypeOf(this, AppError.prototype)
+  }
+}
+
+export const errorHandler = (
+  err: Error | AppError,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      error: err.message
+    })
+  }
+
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
+      success: false,
+      error: err.code === 'LIMIT_FILE_SIZE'
+        ? 'File exceeds the upload size limit'
+        : err.message
+    })
+  }
+
+  if (err.message.startsWith('File format not allowed')) {
+    return res.status(400).json({
+      success: false,
+      error: err.message
+    })
+  }
+
+  console.error('Unexpected error:', err)
+
+  return res.status(500).json({
+    success: false,
+    error: 'Internal server error'
+  })
+}
+
+export const asyncHandler = (fn: Function) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next)
+  }
+}

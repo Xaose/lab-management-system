@@ -1,0 +1,446 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ПОЛЬЗОВАТЕЛИ И РОЛИ
+// ============================================
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  INACTIVE
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+
+  firstName    String     @map("first_name")
+  lastName     String     @map("last_name")
+  patronymic   String?
+  phone        String?
+
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  // Связи с профилями по ролям
+  student      Student?
+  teacher      Teacher?
+  admin        Admin?
+
+  // Активности
+  uploadedFiles       File[]         @relation("FileUploader")
+  notifications       Notification[]
+  comments            Comment[]
+  auditLogs           AuditLog[]
+
+  @@map("users")
+}
+
+// ============================================
+// СТУДЕНТ
+// ============================================
+
+model Student {
+  id              String   @id @default(cuid())
+  userId          String   @unique @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  studentIdNumber String   @unique @map("student_id_number") // Номер зачётной книжки
+  groupId         String   @map("group_id")
+  group           Group    @relation(fields: [groupId], references: [id])
+
+  course          Int      // Курс обучения
+  program         String   // Направление подготовки
+  faculty         String   // Факультет
+
+  submissions     Submission[]
+
+  @@map("students")
+}
+
+// ============================================
+// ПРЕПОДАВАТЕЛЬ
+// ============================================
+
+model Teacher {
+  id              String   @id @default(cuid())
+  userId          String   @unique @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  position        String   // Должность
+  department      String   // Кафедра
+  degree          String?  // Учёная степень
+  title           String?  // Учёное звание
+
+  disciplinesCreated      Discipline[]         @relation("DisciplineCreator")
+  disciplinesTeaching     DisciplineTeacher[]
+  reviews                 Review[]
+
+  @@map("teachers")
+}
+
+// ============================================
+// АДМИНИСТРАТОР
+// ============================================
+
+model Admin {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admins")
+}
+
+// ============================================
+// УЧЕБНЫЕ ГРУППЫ
+// ============================================
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String   @unique // Например: "ИС-21"
+  course      Int
+  program     String   // Направление подготовки
+  faculty     String   // Факультет
+  year        Int      // Учебный год начала обучения
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  students    Student[]
+  disciplines DisciplineGroup[]
+
+  @@map("groups")
+}
+
+// ============================================
+// ДИСЦИПЛИНЫ
+// ============================================
+
+enum DisciplineStatus {
+  DRAFT      // Черновик
+  PUBLISHED  // Опубликована
+  ARCHIVED   // Архивная
+}
+
+model Discipline {
+  id          String            @id @default(cuid())
+  name        String
+  description String?           @db.Text
+  semester    Int               // Семестр
+  year        Int               // Учебный год
+  hours       Int               // Количество часов
+  status      DisciplineStatus  @default(DRAFT)
+
+  // Ответственный преподаватель
+  createdById String            @map("created_by_id")
+  createdBy   Teacher           @relation("DisciplineCreator", fields: [createdById], references: [id])
+
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  // Связи
+  teachers    DisciplineTeacher[]
+  groups      DisciplineGroup[]
+  labWorks    LabWork[]
+
+  @@map("disciplines")
+}
+
+// Связь многие-ко-многим: Дисциплина <-> Преподаватели
+model DisciplineTeacher {
+  disciplineId String     @map("discipline_id")
+  discipline   Discipline @relation(fields: [disciplineId], references: [id], onDelete: Cascade)
+
+  teacherId    String     @map("teacher_id")
+  teacher      Teacher    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  assignedAt   DateTime   @default(now()) @map("assigned_at")
+
+  @@id([disciplineId, teacherId])
+  @@map("discipline_teachers")
+}
+
+// Связь многие-ко-многим: Дисциплина <-> Группы
+model DisciplineGroup {
+  disciplineId String     @map("discipline_id")
+  discipline   Discipline @relation(fields: [disciplineId], references: [id], onDelete: Cascade)
+
+  groupId      String     @map("group_id")
+  group        Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  semester     Int        // Семестр изучения
+  year         Int        // Учебный год
+  assignedAt   DateTime   @default(now()) @map("assigned_at")
+
+  @@id([disciplineId, groupId])
+  @@map("discipline_groups")
+}
+
+// ============================================
+// ЛАБОРАТОРНЫЕ РАБОТЫ
+// ============================================
+
+enum LabWorkStatus {
+  DRAFT      // Черновик
+  PUBLISHED  // Опубликована
+  HIDDEN     // Скрыта
+  ARCHIVED   // Архивная
+}
+
+model LabWork {
+  id              String        @id @default(cuid())
+  disciplineId    String        @map("discipline_id")
+  discipline      Discipline    @relation(fields: [disciplineId], references: [id], onDelete: Cascade)
+
+  number          Int           // Номер лабораторной
+  title           String
+  description     String        @db.Text
+  requirements    String?       @db.Text // Требования к выполнению
+
+  publishedAt     DateTime?     @map("published_at")
+  dueDate         DateTime?     @map("due_date") // Срок сдачи
+  maxScore        Int           @map("max_score") // Максимальный балл
+
+  allowResubmit   Boolean       @default(true) @map("allow_resubmit") // Разрешена ли повторная сдача
+  maxAttempts     Int?          @map("max_attempts") // Максимальное количество попыток
+
+  allowedFormats  String[]      @map("allowed_formats") // ['pdf', 'docx', 'zip']
+  maxFileSize     Int           @map("max_file_size") // В байтах
+
+  status          LabWorkStatus @default(DRAFT)
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Связи
+  criteria        Criterion[]
+  submissions     Submission[]
+  files           File[]        @relation("LabWorkFiles")
+
+  @@unique([disciplineId, number]) // Уникальность номера в рамках дисциплины
+  @@map("lab_works")
+}
+
+// ============================================
+// КРИТЕРИИ ОЦЕНИВАНИЯ
+// ============================================
+
+model Criterion {
+  id          String   @id @default(cuid())
+  labWorkId   String   @map("lab_work_id")
+  labWork     LabWork  @relation(fields: [labWorkId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?  @db.Text
+  maxScore    Int      @map("max_score")
+  order       Int      @default(0) // Порядок отображения
+
+  criteriaScores CriterionScore[]
+
+  @@map("criteria")
+}
+
+// ============================================
+// ОТПРАВКИ РАБОТ
+// ============================================
+
+enum SubmissionStatus {
+  DRAFT        // Черновик
+  SUBMITTED    // Отправлена на проверку
+  IN_REVIEW    // На проверке
+  REVIEWED     // Проверена
+  REVISION     // Возвращена на доработку
+}
+
+model Submission {
+  id              String           @id @default(cuid())
+  studentId       String           @map("student_id")
+  student         Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  labWorkId       String           @map("lab_work_id")
+  labWork         LabWork          @relation(fields: [labWorkId], references: [id], onDelete: Cascade)
+
+  attemptNumber   Int              @default(1) @map("attempt_number")
+  status          SubmissionStatus @default(DRAFT)
+
+  submittedAt     DateTime?        @map("submitted_at") // Дата окончательной отправки
+  isLate          Boolean          @default(false) @map("is_late") // Просрочена ли
+
+  studentComment  String?          @db.Text @map("student_comment")
+
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  // Связи
+  files           File[]           @relation("SubmissionFiles")
+  reviews         Review[]
+  comments        Comment[]
+
+  @@unique([studentId, labWorkId, attemptNumber])
+  @@map("submissions")
+}
+
+// ============================================
+// ПРОВЕРКА РАБОТ
+// ============================================
+
+enum ReviewResult {
+  ACCEPTED  // Принята
+  REVISION  // На доработку
+  REJECTED  // Отклонена
+}
+
+model Review {
+  id              String       @id @default(cuid())
+  submissionId    String       @map("submission_id")
+  submission      Submission   @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  teacherId       String       @map("teacher_id")
+  teacher         Teacher      @relation(fields: [teacherId], references: [id])
+
+  score           Int?         // Итоговая оценка
+  result          ReviewResult
+  comment         String?      @db.Text
+
+  reviewedAt      DateTime     @default(now()) @map("reviewed_at")
+
+  // Оценки по критериям
+  criteriaScores  CriterionScore[]
+
+  @@map("reviews")
+}
+
+// Оценки по отдельным критериям
+model CriterionScore {
+  reviewId    String    @map("review_id")
+  review      Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  criterionId String    @map("criterion_id")
+  criterion   Criterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+
+  score       Int       // Баллы за критерий
+
+  @@id([reviewId, criterionId])
+  @@map("criterion_scores")
+}
+
+// ============================================
+// ФАЙЛЫ
+// ============================================
+
+model File {
+  id            String   @id @default(cuid())
+  originalName  String   @map("original_name")
+  storedName    String   @unique @map("stored_name") // UUID имя в хранилище
+  extension     String
+  mimeType      String   @map("mime_type")
+  size          Int      // В байтах
+  path          String   // Относительный путь в хранилище
+
+  uploadedById  String   @map("uploaded_by_id")
+  uploadedBy    User     @relation("FileUploader", fields: [uploadedById], references: [id])
+
+  uploadedAt    DateTime @default(now()) @map("uploaded_at")
+
+  // Связи (опциональные — файл может быть прикреплён к разным сущностям)
+  submissionId  String?  @map("submission_id")
+  submission    Submission? @relation("SubmissionFiles", fields: [submissionId], references: [id], onDelete: Cascade)
+
+  labWorkId     String?  @map("lab_work_id")
+  labWork       LabWork? @relation("LabWorkFiles", fields: [labWorkId], references: [id], onDelete: Cascade)
+
+  @@map("files")
+}
+
+// ============================================
+// УВЕДОМЛЕНИЯ
+// ============================================
+
+enum NotificationType {
+  LAB_PUBLISHED       // Опубликована новая лабораторная
+  DEADLINE_SOON       // Приближается срок сдачи
+  SUBMISSION_RECEIVED // Получена новая отправка (для преподавателя)
+  REVIEW_COMPLETED    // Проверка завершена (для студента)
+  REVISION_REQUIRED   // Работа возвращена на доработку
+  COMMENT_ADDED       // Добавлен комментарий
+}
+
+model Notification {
+  id            String           @id @default(cuid())
+  userId        String           @map("user_id")
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type          NotificationType
+  text          String           @db.Text
+
+  relatedType   String?          @map("related_type") // 'LabWork', 'Submission', 'Review'
+  relatedId     String?          @map("related_id")
+
+  isRead        Boolean          @default(false) @map("is_read")
+
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ============================================
+// КОММЕНТАРИИ
+// ============================================
+
+model Comment {
+  id           String     @id @default(cuid())
+  submissionId String     @map("submission_id")
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  authorId     String     @map("author_id")
+  author       User       @relation(fields: [authorId], references: [id])
+
+  text         String     @db.Text
+  isVisible    Boolean    @default(true) @map("is_visible")
+
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@map("comments")
+}
+
+// ============================================
+// ЖУРНАЛ ДЕЙСТВИЙ (для администраторов)
+// ============================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+
+  action    String   // 'CREATE_USER', 'UPDATE_LAB', 'DELETE_SUBMISSION'
+  entity    String   // 'User', 'LabWork', 'Submission'
+  entityId  String?  @map("entity_id")
+
+  details   Json?    // Дополнительные данные
+  ipAddress String?  @map("ip_address")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}

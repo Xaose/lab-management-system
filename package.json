@@ -1,0 +1,28 @@
+{
+  "name": "lab-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Система сдачи и проверки лабораторных работ",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --workspace=apps/backend",
+    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "build": "npm run build --workspace=packages/database && npm run build --workspace=apps/backend && npm run build --workspace=apps/frontend",
+    "db:migrate": "prisma migrate dev --schema=packages/database/prisma/schema.prisma",
+    "db:reset": "prisma migrate reset --schema=packages/database/prisma/schema.prisma --force",
+    "db:studio": "npm run db:studio --workspace=packages/database",
+    "db:seed": "tsx packages/database/prisma/seed.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

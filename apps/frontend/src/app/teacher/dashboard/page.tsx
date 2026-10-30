@@ -8,14 +8,16 @@ import { apiClient } from '@/lib/api-client'
 
 export default function TeacherDashboard() {
   const [counts, setCounts] = useState<number[] | null>(null)
+  const [analytics, setAnalytics] = useState<{ averageScore: number | null; reviewRate: number; revision: number } | null>(null)
 
   useEffect(() => {
     let active = true
     Promise.all([
       apiClient.get('/disciplines'),
       apiClient.get('/lab-works'),
-      apiClient.get('/submissions')
-    ]).then(([disciplines, labWorks, submissions]) => {
+      apiClient.get('/submissions'),
+      apiClient.get('/analytics/teacher')
+    ]).then(([disciplines, labWorks, submissions, analyticsResponse]) => {
       if (active) {
         const submissionList = submissions.data?.submissions || []
         setCounts([
@@ -26,6 +28,7 @@ export default function TeacherDashboard() {
           ).length,
           submissionList.filter((submission: { status: string }) => submission.status === 'REVIEWED').length
         ])
+        setAnalytics(analyticsResponse.data)
       }
     }).catch(() => {
       if (active) setCounts(null)
@@ -48,9 +51,9 @@ export default function TeacherDashboard() {
       gradient: 'from-lavender-500 to-purple-600'
     },
     {
-      title: 'Создать лабораторную',
-      description: 'Добавить новое задание для студентов',
-      href: '/teacher/lab-works/create',
+      title: 'Лабораторные работы',
+      description: 'Просмотр существующих работ и создание новых внутри дисциплины',
+      href: '/teacher/disciplines',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -74,6 +77,7 @@ export default function TeacherDashboard() {
   const stats = [
     {
       label: 'Мои дисциплины',
+      href: '/teacher/disciplines',
       value: counts ? String(counts[0]) : '...',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,6 +89,7 @@ export default function TeacherDashboard() {
     },
     {
       label: 'Лабораторных работ',
+      href: '/teacher/disciplines',
       value: counts ? String(counts[1]) : '...',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,6 +101,7 @@ export default function TeacherDashboard() {
     },
     {
       label: 'На проверке',
+      href: '/teacher/submissions',
       value: counts ? String(counts[2]) : '...',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,6 +113,7 @@ export default function TeacherDashboard() {
     },
     {
       label: 'Проверено',
+      href: '/teacher/submissions',
       value: counts ? String(counts[3]) : '...',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,76 +123,123 @@ export default function TeacherDashboard() {
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50'
     },
-  ]
+  ] as const
 
   return (
     <div className="dashboard-page">
-      <div className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
-        <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between animate-fade-in">
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10 xl:px-10">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between animate-fade-in">
           <div>
-            <Badge variant="secondary" className="mb-3 shadow-soft">Рабочее пространство преподавателя</Badge>
-            <h1 className="mb-2 text-4xl font-bold tracking-tight text-slate-950">Обзор работы</h1>
-            <p className="text-base text-[hsl(var(--foreground-secondary))]">
+            <Badge variant="secondary" className="mb-3 border-white/70 bg-white/60 shadow-soft">Рабочее пространство преподавателя</Badge>
+            <h1 className="mb-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Обзор работы</h1>
+            <p className="max-w-xl text-sm leading-6 text-[hsl(var(--foreground-secondary))] sm:text-base">
               Управляйте курсами и проверяйте новые сдачи студентов.
             </p>
           </div>
-          <Badge>Весенний семестр</Badge>
+          <Badge className="self-start border-white/70 bg-white/65 shadow-soft sm:self-auto">Весенний семестр</Badge>
         </div>
 
-        <div className="mb-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="dashboard-hero mb-6 animate-fade-in">
+          <div className="relative z-10 max-w-2xl">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">LabFlow · преподавание</p>
+            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Ваши курсы и проверка работ</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/75">Следите за учебной нагрузкой и быстро переходите к новым сдачам.</p>
+          </div>
+          <Link href="/teacher/submissions" className="dashboard-hero-link">
+            Открыть проверку работ
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </Link>
+        </section>
+
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat, index) => (
-            <Card key={index} className={`p-6 animate-fade-in stagger-${index + 1}`}>
-              <div className="mb-4 flex items-center justify-between">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-[0.95rem] ${stat.bgColor} ${stat.color} shadow-soft transition-transform hover:scale-110`}>
+            <Link key={index} href={stat.href} className="group dashboard-interactive rounded-[1.5rem]">
+              <Card className={`dashboard-stat-card animate-fade-in stagger-${index + 1}`}>
+              <div className="relative z-10 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-[hsl(var(--foreground-secondary))]">{stat.label}</div>
+                  <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{stat.value}</div>
+                </div>
+                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${stat.bgColor} ${stat.color} shadow-soft transition-transform duration-300 group-hover:rotate-3 group-hover:scale-105`}>
                   {stat.icon}
                 </div>
               </div>
-              <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-              <div className="mt-1 text-sm text-[hsl(var(--foreground-secondary))]">{stat.label}</div>
-            </Card>
+              </Card>
+            </Link>
           ))}
         </div>
 
-        <div className="mb-10 animate-fade-in stagger-5">
-          <h2 className="mb-5 text-xl font-semibold text-slate-900">Быстрые действия</h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <Card className="mb-8 p-5 sm:p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-lavender-700">Аналитика</p>
+              <h2 className="text-lg font-semibold text-slate-900">Качество проверки</h2>
+            </div>
+            <button type="button" onClick={async () => {
+              const blob = await apiClient.download('/analytics/teacher/export')
+              const url = URL.createObjectURL(blob)
+              const anchor = document.createElement('a')
+              anchor.href = url
+              anchor.download = 'vedomost.csv'
+              anchor.click()
+              URL.revokeObjectURL(url)
+            }} className="rounded-lg bg-[hsl(var(--primary))] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[hsl(var(--primary-dark))]">Экспорт ведомости</button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-lavender-50/70 p-4"><div className="text-2xl font-bold text-slate-900">{analytics?.averageScore ?? '—'}</div><div className="text-sm text-slate-500">средний балл</div></div>
+            <div className="rounded-xl bg-lavender-50/70 p-4"><div className="text-2xl font-bold text-slate-900">{analytics?.reviewRate ?? 0}%</div><div className="text-sm text-slate-500">проверено работ</div></div>
+            <div className="rounded-xl bg-lavender-50/70 p-4"><div className="text-2xl font-bold text-slate-900">{analytics?.revision ?? 0}</div><div className="text-sm text-slate-500">на доработке</div></div>
+          </div>
+        </Card>
+
+        <section className="mb-5 animate-fade-in stagger-5">
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-lavender-700">Рабочее пространство</p>
+              <h2 className="dashboard-section-title">Быстрые действия</h2>
+            </div>
+            <span className="hidden text-sm text-[hsl(var(--foreground-secondary))] sm:block">Курсы и работы</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {quickActions.map((action, index) => (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="group"
-              >
-                <CardHover className="p-7 transition-all duration-200">
-                  <div className={`mb-5 flex h-14 w-14 items-center justify-center rounded-[1.1rem] bg-gradient-to-br ${action.gradient} text-white shadow-soft-md transition-transform duration-200 group-hover:scale-110 group-hover:shadow-soft-lg`}>
+              <Link key={action.href} href={action.href} className="group dashboard-interactive rounded-[1.5rem] focus-visible:ring-offset-4">
+                <CardHover className={`flex h-full items-center gap-4 p-5 animate-fade-in stagger-${index + 1}`}>
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${action.gradient} text-white shadow-soft-md transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3`}>
                     {action.icon}
                   </div>
-                  <h3 className="mb-1.5 text-lg font-semibold text-slate-900 transition-colors group-hover:text-[hsl(var(--primary))]">
-                    {action.title}
-                  </h3>
-                  <p className="text-sm text-[hsl(var(--foreground-secondary))]">{action.description}</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="mb-1 text-base font-semibold text-slate-900 transition-colors group-hover:text-[hsl(var(--primary))]">{action.title}</h3>
+                    <p className="text-sm leading-5 text-[hsl(var(--foreground-secondary))]">{action.description}</p>
+                  </div>
+                  <svg className="h-5 w-5 shrink-0 text-lavender-500 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </CardHover>
               </Link>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="animate-fade-in stagger-6">
-          <Card className="p-7">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-slate-900">Последние работы на проверке</h2>
-              <Badge variant="secondary">0 работ</Badge>
+        <section className="animate-fade-in stagger-6">
+          <Card className="p-6 sm:p-7">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-lavender-700">Очередь</p>
+                <h2 className="dashboard-section-title">Последние работы на проверке</h2>
+              </div>
+              <Badge variant="secondary" className="shrink-0 bg-lavender-50 text-lavender-800">0 работ</Badge>
             </div>
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
-                <svg className="h-8 w-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-lavender-50/80 to-white/60 px-5 py-8 text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-soft">
+                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className="text-base font-medium text-slate-700">Нет работ на проверке</p>
-              <p className="mt-1 text-sm text-[hsl(var(--foreground-secondary))]">Все работы проверены или студенты ещё не сдали задания</p>
+              <p className="text-sm font-semibold text-slate-800">Нет работ на проверке</p>
+              <p className="mt-1 max-w-md text-sm leading-5 text-[hsl(var(--foreground-secondary))]">Все работы проверены или студенты ещё не сдали задания</p>
             </div>
           </Card>
-        </div>
+        </section>
       </div>
     </div>
   )

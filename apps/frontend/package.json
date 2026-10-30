@@ -21,7 +21,8 @@
     "zustand": "^4.5.5",
     "react-hot-toast": "^2.4.1",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.5.2"
+    "tailwind-merge": "^2.5.2",
+    "three": "^0.171.0"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -32,6 +33,7 @@
     "postcss": "^8",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
-    "eslint-config-next": "14.2.15"
+    "eslint-config-next": "14.2.15",
+    "@types/three": "^0.171.0"
   }
 }

@@ -47,14 +47,14 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgresql://labuser:labpassword@postgres:5432/lab_management?schema=public
+      DATABASE_URL: "postgresql://labuser:labpassword@postgres:5432/lab_management?schema=public"
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       REDIS_URL: redis://redis:6379
       UPLOAD_DIR: /app/uploads
     ports:
-      - "4000:4000"
+      - "4001:4000"
     volumes:
       - uploads_data:/app/uploads
     depends_on:
@@ -68,12 +68,31 @@ services:
       timeout: 5s
       retries: 10
 
+  deadline-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - npm run db:generate --workspace=packages/database && node apps/backend/dist/jobs/deadline-reminder.js
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://labuser:labpassword@postgres:5432/lab_management?schema=public"
+      DEADLINE_REMINDER_DAEMON: "true"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      backend:
+        condition: service_healthy
+
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4001/api}
     restart: unless-stopped
     environment:
       NODE_ENV: production

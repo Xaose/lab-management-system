@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth.store'
@@ -49,6 +49,31 @@ export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuthStore()
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
+  const [collapsed, setCollapsed] = useState(false)
+  const userId = user?.id
+
+  useEffect(() => {
+    if (!userId) return
+    let active = true
+    const loadUnreadCount = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/notifications`, {
+          headers: { Authorization: 'Bearer ' + (useAuthStore.getState().token || '') }
+        })
+        const data = await response.json()
+        if (active && response.ok) setUnreadNotifications(data.data?.unreadCount || 0)
+      } catch {
+        if (active) setUnreadNotifications(0)
+      }
+    }
+    void loadUnreadCount()
+    const interval = window.setInterval(loadUnreadCount, 60000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [userId, pathname])
 
   if (pathname === '/' || pathname.startsWith('/auth') || !user) return null
 
@@ -63,13 +88,16 @@ export default function Navbar() {
         { href: '/student/dashboard', label: 'Главная', icon: HomeIcon },
         { href: '/student/disciplines', label: 'Дисциплины', icon: BookIcon },
         { href: '/student/submissions', label: 'Мои работы', icon: DocumentIcon },
+        { href: '/notifications', label: 'Уведомления', icon: CheckIcon },
       ]
     : user.role === 'TEACHER'
       ? [
           { href: '/teacher/dashboard', label: 'Главная', icon: HomeIcon },
           { href: '/teacher/disciplines', label: 'Дисциплины', icon: BookIcon },
-          { href: '/teacher/lab-works/create', label: 'Лабораторные', icon: DocumentIcon },
+          { href: '/teacher/groups', label: 'Группы', icon: GroupIcon },
+          { href: '/teacher/disciplines', label: 'Лабораторные', icon: DocumentIcon },
           { href: '/teacher/submissions', label: 'Проверка работ', icon: CheckIcon },
+          { href: '/notifications', label: 'Уведомления', icon: CheckIcon },
         ]
       : [
           { href: '/admin/dashboard', label: 'Главная', icon: HomeIcon },
@@ -90,18 +118,23 @@ export default function Navbar() {
   }
 
   return (
-    <aside className="sticky top-0 z-50 flex h-screen w-[76px] shrink-0 flex-col items-center border-r border-[hsl(var(--border-light))] bg-white/75 py-6 backdrop-blur-xl lg:w-72 lg:items-stretch lg:px-5 animate-fade-in">
+    <aside className={`sticky top-0 z-50 flex h-screen shrink-0 flex-col items-center border-r border-white/20 bg-[hsl(258_55%_79%)] py-6 transition-[width] duration-300 lg:items-stretch lg:px-4 animate-fade-in ${collapsed ? 'w-[68px] lg:w-20' : 'w-[68px] lg:w-64'}`}>
       <Link
         href={dashboardHref}
-        className="mb-10 flex items-center justify-center gap-3 transition-transform hover:scale-105 lg:justify-start lg:px-3"
+        className={`mb-6 flex items-center justify-center gap-3 transition-transform hover:scale-105 lg:px-3 ${collapsed ? 'lg:justify-center' : 'lg:justify-start'}`}
       >
-        <div className="flex h-11 w-11 items-center justify-center rounded-[1.1rem] bg-gradient-to-br from-[hsl(var(--primary))] to-purple-600 text-lg font-bold text-white shadow-soft-md">
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[hsl(var(--primary))] text-lg font-bold text-white shadow-soft-md">
           L
         </div>
-        <span className="hidden text-xl font-bold tracking-tight text-slate-900 lg:block">LabFlow</span>
+        <span className={`hidden text-xl font-bold tracking-tight text-slate-900 ${collapsed ? '' : 'lg:block'}`}>LabFlow</span>
       </Link>
+      <button type="button" onClick={() => setCollapsed(value => !value)} className="mb-6 hidden h-12 w-12 self-end items-center justify-center rounded-xl p-2 text-slate-700 transition hover:bg-lavender-200/60 hover:text-[hsl(var(--primary-dark))] lg:flex" title={collapsed ? 'Развернуть меню' : 'Свернуть меню'} aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'}>
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={collapsed ? 'M9 5l7 7-7 7' : 'M15 5l-7 7 7 7'} />
+        </svg>
+      </button>
 
-      <nav className="flex w-full flex-1 flex-col items-center gap-2 lg:items-stretch">
+      <nav className={`flex w-full flex-1 flex-col items-center gap-2 lg:items-stretch ${collapsed ? 'lg:items-center' : ''}`}>
         {navigationLinks.map((link, index) => {
           const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`)
           const Icon = link.icon
@@ -110,43 +143,50 @@ export default function Navbar() {
               key={link.href}
               href={link.href}
               title={link.label}
-              className={`group relative flex items-center justify-center gap-3 rounded-[0.95rem] px-4 py-3.5 text-sm font-semibold transition-all duration-200 lg:justify-start animate-slide-in stagger-${index + 1} ${
+              className={`group relative flex items-center justify-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-all duration-200 animate-slide-in stagger-${index + 1} ${collapsed ? 'lg:w-12 lg:justify-center' : 'lg:justify-start'} ${
                 isActive
-                  ? 'bg-gradient-to-br from-lavender-100 to-lavender-50 text-lavender-800 shadow-soft'
-                  : 'text-slate-600 hover:bg-lavender-50/60 hover:text-lavender-800'
+                  ? 'bg-white/70 text-[hsl(var(--primary-dark))] shadow-[0_4px_14px_rgba(59,34,116,0.08)]'
+                  : 'text-slate-700 hover:bg-white/35 hover:text-[hsl(var(--primary-dark))]'
               }`}
             >
               {isActive && (
                 <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary))] transition-all" />
               )}
-              <Icon />
-              <span className="hidden lg:block">{link.label}</span>
+              <span className="relative">
+                <Icon />
+                {link.href === '/notifications' && unreadNotifications > 0 && (
+                  <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                  </span>
+                )}
+              </span>
+              <span className={`hidden ${collapsed ? '' : 'lg:block'}`}>{link.label}</span>
             </Link>
           )
         })}
       </nav>
 
-      <div className="mt-auto w-full space-y-3">
-        <div className="hidden items-center gap-3 rounded-[1.1rem] bg-gradient-to-br from-lavender-50 to-lavender-100/50 p-4 shadow-soft lg:flex">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-lavender-300 to-lavender-200 text-sm font-bold text-lavender-900">
-            {user.firstName[0]}{user.lastName[0]}
+      <div className={`mt-auto w-full space-y-3 ${collapsed ? 'lg:flex lg:flex-col lg:items-center' : ''}`}>
+        <Link href="/profile" title="Профиль" className={`flex items-center gap-3 rounded-xl border border-white/35 bg-white/35 p-3 text-sm transition hover:bg-white/60 ${collapsed ? 'lg:h-12 lg:w-12 lg:justify-center lg:p-0' : ''}`}>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-lavender-300 to-lavender-200 text-sm font-bold text-lavender-900">
+            {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : `${user.firstName[0]}${user.lastName[0]}`}
           </div>
-          <div className="min-w-0 flex-1">
+          <div className={`min-w-0 flex-1 ${collapsed ? 'lg:hidden' : ''}`}>
             <p className="truncate text-sm font-semibold text-slate-900">{user.firstName} {user.lastName}</p>
             <p className="text-xs text-slate-600">{roleLabels[user.role]}</p>
           </div>
-        </div>
+        </Link>
         <Button
           variant="ghost"
           size="icon"
           title="Выйти"
           onClick={handleLogout}
-          className="mx-auto text-slate-600 hover:text-red-600 lg:mx-0 lg:w-full lg:justify-start lg:gap-3"
+          className={`mx-auto text-slate-600 hover:bg-red-100/60 hover:text-red-700 lg:mx-0 lg:gap-3 ${collapsed ? 'lg:h-12 lg:w-12 lg:justify-center' : 'lg:w-full lg:justify-start'}`}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          <span className="hidden lg:block">Выйти</span>
+          <span className={`hidden ${collapsed ? '' : 'lg:block'}`}>Выйти</span>
         </Button>
       </div>
     </aside>

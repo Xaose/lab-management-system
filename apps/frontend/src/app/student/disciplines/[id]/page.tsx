@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
+import { labWorkSlug } from '@/lib/slug'
 
 interface LabWork {
   id: string
@@ -14,7 +15,6 @@ interface LabWork {
   maxScore: number
   status: string
 }
-
 interface Discipline {
   id: string
   name: string
@@ -32,13 +32,13 @@ export default function StudentDisciplinePage() {
     try {
       setLoading(true)
 
-      const [disciplineRes, labWorksRes] = await Promise.all([
-        apiClient.get(`/disciplines/${params.id}`),
-        apiClient.get(`/lab-works?disciplineId=${params.id}`)
-      ])
-
-      setDiscipline(disciplineRes.data?.discipline || null)
-      setLabWorks(labWorksRes.data?.labWorks || [])
+      const disciplineRes = await apiClient.get(`/disciplines/${params.id}`)
+      const loadedDiscipline = disciplineRes.data?.discipline || null
+      setDiscipline(loadedDiscipline)
+      if (loadedDiscipline) {
+        const labWorksRes = await apiClient.get(`/lab-works?disciplineId=${loadedDiscipline.id}`)
+        setLabWorks(labWorksRes.data?.labWorks || [])
+      }
     } catch (error) {
       console.error('Failed to load data:', error)
     } finally {
@@ -109,7 +109,7 @@ export default function StudentDisciplinePage() {
             {labWorks.map((labWork) => (
               <Link
                 key={labWork.id}
-                href={`/student/lab-works/${labWork.id}`}
+                href={`/student/lab-works/${labWorkSlug(labWork.number, labWork.title)}`}
                 className="block bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 border border-gray-100"
               >
                 <div className="flex items-start justify-between">

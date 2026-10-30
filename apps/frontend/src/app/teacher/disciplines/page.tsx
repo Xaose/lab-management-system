@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
+import { slugify } from '@/lib/slug'
 import { Card, CardHover } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,8 @@ interface Discipline {
   id: string
   name: string
   description: string | null
+  labWorks?: Array<{ id: string }>
+  teachers?: Array<{ teacher: { user: { firstName: string; lastName: string } } }>
 }
 
 export default function TeacherDisciplinesPage() {
@@ -63,12 +66,9 @@ export default function TeacherDisciplinesPage() {
               Управление дисциплинами и лабораторными работами
             </p>
           </div>
-          <Link href="/teacher/lab-works/create">
-            <Button size="lg" className="gap-2">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Создать лабораторную
+          <Link href="/teacher/submissions">
+            <Button size="lg" variant="outline" className="gap-2">
+              Проверить сдачи
             </Button>
           </Link>
         </div>
@@ -109,15 +109,18 @@ export default function TeacherDisciplinesPage() {
                         {discipline.description}
                       </p>
                     )}
+                    <p className="mt-3 text-xs text-slate-500">
+                      Преподаватели: {discipline.teachers?.map(({ teacher }) => `${teacher.user.lastName} ${teacher.user.firstName}`).join(', ') || 'не указаны'}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <Link href="/teacher/lab-works/create" className="flex-1">
+                  <Link href={`/teacher/disciplines/${slugify(discipline.name)}`} className="flex-1">
                     <Button variant="secondary" className="w-full gap-2">
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      Лабораторные
+                      Просмотреть лабораторные
                     </Button>
                   </Link>
                   <Link href="/teacher/submissions" className="flex-1">

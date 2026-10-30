@@ -5,10 +5,10 @@
 @layer base {
   :root {
     /* Lavender Purple System - Based on reference */
-    --background: 262 55% 92%;
-    --background-secondary: 262 45% 88%;
-    --foreground: 262 25% 20%;
-    --foreground-secondary: 262 15% 45%;
+    --background: 258 55% 91%;
+    --background-secondary: 257 48% 86%;
+    --foreground: 258 28% 19%;
+    --foreground-secondary: 258 12% 43%;
 
     /* Card surfaces with glassmorphism */
     --card: 0 0% 100%;
@@ -16,18 +16,18 @@
     --card-foreground: 262 25% 20%;
 
     /* Primary purple accent */
-    --primary: 262 70% 55%;
-    --primary-dark: 262 70% 45%;
+    --primary: 263 68% 42%;
+    --primary-dark: 263 70% 34%;
     --primary-foreground: 0 0% 100%;
 
     /* Muted backgrounds */
-    --muted: 262 40% 90%;
-    --muted-foreground: 262 15% 50%;
+    --muted: 258 42% 87%;
+    --muted-foreground: 258 14% 47%;
 
     /* Borders and rings */
-    --border: 262 30% 85%;
-    --border-light: 262 25% 92%;
-    --ring: 262 70% 60%;
+    --border: 258 28% 80%;
+    --border-light: 258 24% 88%;
+    --ring: 263 68% 48%;
 
     /* Status colors - soft variants */
     --success: 142 70% 50%;
@@ -47,10 +47,10 @@
     --info-foreground: 217 91% 40%;
 
     /* Shadows */
-    --shadow-sm: 0 2px 8px rgba(115, 93, 200, 0.06);
-    --shadow-md: 0 8px 24px rgba(115, 93, 200, 0.08);
-    --shadow-lg: 0 16px 48px rgba(115, 93, 200, 0.12);
-    --shadow-xl: 0 24px 64px rgba(115, 93, 200, 0.16);
+    --shadow-sm: 0 2px 8px rgba(59, 34, 116, 0.05);
+    --shadow-md: 0 8px 24px rgba(59, 34, 116, 0.07);
+    --shadow-lg: 0 16px 40px rgba(59, 34, 116, 0.1);
+    --shadow-xl: 0 24px 56px rgba(59, 34, 116, 0.13);
 
     /* Animation timings */
     --duration-fast: 150ms;
@@ -90,16 +90,93 @@
 @layer components {
   /* Card with glassmorphism */
   .dashboard-card {
-    @apply rounded-[1.5rem] border border-[hsl(var(--border-light))] bg-white/80 shadow-[var(--shadow-md)] backdrop-blur-xl transition-all duration-[var(--duration-base)] ease-[var(--ease-smooth)];
+    @apply rounded-[1.25rem] border border-white/55 bg-white/55 shadow-[0_6px_24px_rgba(59,34,116,0.055)] backdrop-blur-sm transition-all duration-300 ease-[var(--ease-smooth)];
   }
 
   .dashboard-card-hover {
-    @apply dashboard-card hover:shadow-[var(--shadow-lg)] hover:-translate-y-1;
+    @apply dashboard-card hover:-translate-y-0.5 hover:border-white/80 hover:bg-white/75 hover:shadow-[0_12px_28px_rgba(59,34,116,0.1)];
   }
 
-  /* Page backgrounds with gradients */
   .dashboard-page {
-    @apply min-h-screen bg-[radial-gradient(circle_at_20%_20%,_hsl(262_80%_88%)_0%,_transparent_50%),radial-gradient(circle_at_80%_80%,_hsl(280_70%_90%)_0%,_transparent_50%),linear-gradient(135deg,_hsl(262_60%_96%)_0%,_hsl(270_55%_94%)_100%)];
+    @apply min-h-screen bg-[linear-gradient(135deg,_hsl(258_54%_91%)_0%,_hsl(258_58%_87%)_50%,_hsl(264_48%_91%)_100%)];
+  }
+
+  .dashboard-page > div > * {
+    animation: fadeIn 400ms var(--ease-smooth) both;
+  }
+
+  .dashboard-page .bg-white:not(input):not(textarea) {
+    @apply border border-white/60 shadow-[0_6px_24px_rgba(59,34,116,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(59,34,116,0.1)];
+  }
+
+  .dashboard-interactive {
+    @apply transition-all duration-300 ease-[var(--ease-smooth)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2;
+  }
+
+  .dashboard-section-title {
+    @apply text-lg font-semibold tracking-tight text-slate-900 sm:text-xl;
+  }
+
+  .dashboard-page input:not([type='checkbox']):not([type='radio']),
+  .dashboard-page select,
+  .dashboard-page textarea {
+    @apply rounded-xl border border-white/70 bg-white/60 shadow-none backdrop-blur-sm focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary))]/15;
+  }
+
+  .dashboard-page table thead {
+    @apply bg-lavender-100/45 text-slate-600;
+  }
+
+  .dashboard-page table tbody tr {
+    @apply border-[hsl(var(--border-light))] transition-colors hover:bg-white/35;
+  }
+
+  .dashboard-hero {
+    @apply relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-[1.4rem] border border-white/10 bg-[linear-gradient(115deg,_hsl(263_62%_36%)_0%,_hsl(263_66%_43%)_58%,_hsl(278_57%_55%)_100%)] p-6 shadow-[0_14px_32px_rgba(59,34,116,0.18)] sm:flex-row sm:items-center sm:p-7;
+  }
+
+  .dashboard-hero::after {
+    content: '';
+    @apply pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full border-[36px] border-white/10;
+  }
+
+  .dashboard-hero-link {
+    @apply relative z-10 inline-flex shrink-0 items-center gap-2 rounded-full border border-white/30 bg-white/15 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(263_62%_48%)];
+  }
+
+  .dashboard-stat-card {
+    @apply relative overflow-hidden p-5 sm:p-6;
+  }
+
+  .dashboard-stat-card::after {
+    content: '';
+    @apply pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-lavender-200/35 blur-2xl transition-transform duration-500;
+  }
+
+  .dashboard-stat-card:hover::after {
+    @apply scale-125;
+  }
+
+  a, button, [role='button'] {
+    transition-timing-function: var(--ease-smooth);
+  }
+
+  a:focus-visible, button:focus-visible, [role='button']:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dashboard-card, .dashboard-card-hover, .dashboard-interactive {
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .dashboard-page > div {
+      padding-top: 1.75rem;
+      padding-bottom: 2.5rem;
+    }
   }
 
   /* Fade in animation */

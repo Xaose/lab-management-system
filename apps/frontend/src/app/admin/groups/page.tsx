@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
+import { slugify } from '@/lib/slug'
+import { Select } from '@/components/ui/select'
 
 interface Group {
   id: string
@@ -84,7 +87,7 @@ export default function GroupsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="dashboard-page min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Управление группами</h1>
@@ -136,12 +139,17 @@ export default function GroupsPage() {
                     <span className="font-medium">{group._count.disciplines}</span> дисциплин
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteGroup(group.id)}
-                  className="text-red-600 hover:text-red-900 text-sm font-medium"
-                >
-                  Удалить
-                </button>
+                <div className="flex items-center gap-3">
+                  <Link href={`/admin/groups/${slugify(group.name)}`} className="text-primary-600 hover:text-primary-800 text-sm font-medium">
+                    Подробнее
+                  </Link>
+                  <button
+                    onClick={() => handleDeleteGroup(group.id)}
+                    className="text-red-600 hover:text-red-900 text-sm font-medium"
+                  >
+                    Удалить
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -185,19 +193,7 @@ export default function GroupsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Курс *
                 </label>
-                <select
-                  required
-                  value={formData.course}
-                  onChange={(e) => setFormData({ ...formData, course: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value={1}>1 курс</option>
-                  <option value={2}>2 курс</option>
-                  <option value={3}>3 курс</option>
-                  <option value={4}>4 курс</option>
-                  <option value={5}>5 курс</option>
-                  <option value={6}>6 курс</option>
-                </select>
+                <Select required value={String(formData.course)} onChange={value => setFormData({ ...formData, course: Number(value) })} options={[1, 2, 3, 4, 5, 6].map(course => ({ value: String(course), label: `${course} курс` }))} />
               </div>
 
               <div>

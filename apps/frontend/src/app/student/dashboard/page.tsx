@@ -5,17 +5,25 @@ import Link from 'next/link'
 import { Card, CardHover } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { apiClient } from '@/lib/api-client'
+import { labWorkSlug } from '@/lib/slug'
 
 export default function StudentDashboard() {
   const [counts, setCounts] = useState<number[] | null>(null)
+  const [progress, setProgress] = useState<{
+    completionPercent: number
+    averageScore: number | null
+    overdue: number
+    upcoming: { id: string; number: number; title: string; dueDate: string; discipline: string }[]
+  } | null>(null)
 
   useEffect(() => {
     let active = true
     Promise.all([
       apiClient.get('/disciplines'),
       apiClient.get('/lab-works'),
-      apiClient.get('/submissions')
-    ]).then(([disciplines, labWorks, submissions]) => {
+      apiClient.get('/submissions'),
+      apiClient.get('/analytics/student-progress')
+    ]).then(([disciplines, labWorks, submissions, progressResponse]) => {
       if (active) {
         const submissionList = submissions.data?.submissions || []
         setCounts([
@@ -24,6 +32,7 @@ export default function StudentDashboard() {
           submissionList.filter((submission: { status: string }) => submission.status !== 'DRAFT').length,
           Math.max((labWorks.data?.labWorks?.length || 0) - submissionList.length, 0)
         ])
+        setProgress(progressResponse.data)
       }
     }).catch(() => {
       if (active) setCounts(null)
@@ -36,6 +45,7 @@ export default function StudentDashboard() {
   const stats = [
     {
       label: 'Активных дисциплин',
+      href: '/student/disciplines',
       value: counts ? String(counts[0]) : '...',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,6 +57,7 @@ export default function StudentDashboard() {
     },
     {
       label: 'Всего работ',
+      href: '/student/disciplines',
       value: counts ? String(counts[1]) : '...',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,6 +69,7 @@ export default function StudentDashboard() {
     },
     {
       label: 'Сдано',
+      href: '/student/submissions',
       value: counts ? String(counts[2]) : '...',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -69,6 +81,7 @@ export default function StudentDashboard() {
     },
     {
       label: 'Не сдано',
+      href: '/student/disciplines',
       value: counts ? String(counts[3]) : '...',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,80 +120,131 @@ export default function StudentDashboard() {
 
   return (
     <div className="dashboard-page">
-      <div className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
-        <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between animate-fade-in">
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10 xl:px-10">
+        <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between animate-fade-in">
           <div>
-            <Badge variant="secondary" className="mb-3 shadow-soft">Рабочее пространство студента</Badge>
-            <h1 className="mb-2 text-4xl font-bold tracking-tight text-slate-950">Добро пожаловать!</h1>
-            <p className="text-base text-[hsl(var(--foreground-secondary))]">
+            <Badge variant="secondary" className="mb-3 border-white/70 bg-white/60 shadow-soft">Рабочее пространство студента</Badge>
+            <h1 className="mb-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Добро пожаловать!</h1>
+            <p className="max-w-xl text-sm leading-6 text-[hsl(var(--foreground-secondary))] sm:text-base">
               Следите за дисциплинами и сдавайте лабораторные работы вовремя.
             </p>
           </div>
-          <Badge className="self-start sm:self-auto">
+          <Badge className="self-start border-white/70 bg-white/65 shadow-soft sm:self-auto">
             Сегодня · {new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
           </Badge>
         </div>
 
-        <div className="mb-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="dashboard-hero mb-6 animate-fade-in">
+          <div className="relative z-10 max-w-2xl">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">LabFlow · обучение</p>
+            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Ваш прогресс начинается здесь</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/75">Продолжайте обучение и держите лабораторные работы под контролем.</p>
+          </div>
+          <Link href="/student/disciplines" className="dashboard-hero-link">
+            Перейти к дисциплинам
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </Link>
+        </section>
+
+        <div className="mb-9 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat, index) => (
-            <Card key={index} className={`p-6 animate-fade-in stagger-${index + 1}`}>
-              <div className="mb-4 flex items-center justify-between">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-[0.95rem] ${stat.bgColor} ${stat.color} shadow-soft transition-transform hover:scale-110`}>
-                  {stat.icon}
+            <Link key={index} href={stat.href} className="group dashboard-interactive rounded-[1.5rem]">
+              <Card className={`dashboard-stat-card animate-fade-in stagger-${index + 1}`}>
+                <div className="relative z-10 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-[hsl(var(--foreground-secondary))]">{stat.label}</div>
+                    <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{stat.value}</div>
+                  </div>
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${stat.bgColor} ${stat.color} shadow-soft transition-transform duration-300 group-hover:rotate-3 group-hover:scale-105`}>
+                    {stat.icon}
+                  </div>
                 </div>
-              </div>
-              <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-              <div className="mt-1 text-sm text-[hsl(var(--foreground-secondary))]">{stat.label}</div>
-            </Card>
+              </Card>
+            </Link>
           ))}
         </div>
 
-        <div className="mb-10 animate-fade-in stagger-5">
-          <h2 className="mb-5 text-xl font-semibold text-slate-900">Быстрые действия</h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {quickLinks.map((link, index) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="group"
-              >
-                <CardHover className="p-7 transition-all duration-200">
-                  <div className="flex items-start gap-5">
-                    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.1rem] bg-gradient-to-br ${link.gradient} text-white shadow-soft-md transition-transform duration-200 group-hover:scale-110 group-hover:shadow-soft-lg`}>
-                      {link.icon}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="mb-1.5 text-lg font-semibold text-slate-900 transition-colors group-hover:text-[hsl(var(--primary))]">
-                        {link.title}
-                      </h3>
-                      <p className="text-sm text-[hsl(var(--foreground-secondary))]">{link.description}</p>
-                    </div>
-                    <svg className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-hover:translate-x-1 group-hover:text-[hsl(var(--primary))]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </CardHover>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        <div className="animate-fade-in stagger-6">
-          <Card className="p-7">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-slate-900">Ближайшие дедлайны</h2>
-              <Badge variant="secondary">0 активных</Badge>
+        <section className="mb-9 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+          <Card className="p-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">Ваш прогресс</h2>
+              <span className="text-2xl font-bold text-lavender-700">{progress?.completionPercent ?? 0}%</span>
             </div>
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-lavender-50">
-                <svg className="h-8 w-8 text-lavender-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <p className="text-base font-medium text-slate-700">Нет предстоящих дедлайнов</p>
-              <p className="mt-1 text-sm text-[hsl(var(--foreground-secondary))]">Все задания выполнены или ещё не назначены</p>
+            <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-gradient-to-r from-lavender-500 to-purple-600 transition-all" style={{ width: `${progress?.completionPercent ?? 0}%` }} />
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3 text-center text-sm">
+              <div><strong className="block text-lg text-slate-900">{progress?.averageScore ?? '—'}</strong><span className="text-slate-500">средний балл</span></div>
+              <div><strong className="block text-lg text-slate-900">{progress?.overdue ?? 0}</strong><span className="text-slate-500">просрочено</span></div>
+              <div><strong className="block text-lg text-slate-900">{progress?.upcoming.length ?? 0}</strong><span className="text-slate-500">ближайших</span></div>
             </div>
           </Card>
+          <Card className="p-6">
+            <h2 className="mb-3 text-lg font-semibold text-slate-900">Ближайшие дедлайны</h2>
+            <div className="space-y-2">
+              {(progress?.upcoming ?? []).slice(0, 3).map(item => (
+                <Link key={item.id} href={`/student/lab-works/${labWorkSlug(item.number, item.title)}`} className="block rounded-lg bg-slate-50 p-3 transition hover:bg-lavender-50">
+                  <div className="font-medium text-slate-900">{item.title}</div>
+                  <div className="text-xs text-slate-500">{item.discipline} · {new Date(item.dueDate).toLocaleDateString('ru-RU')}</div>
+                </Link>
+              ))}
+              {!progress?.upcoming.length && <p className="text-sm text-slate-500">Новых дедлайнов нет</p>}
+            </div>
+          </Card>
+        </section>
+
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+          <section className="animate-fade-in stagger-5">
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-lavender-700">Продолжить обучение</p>
+                <h2 className="dashboard-section-title">Быстрые действия</h2>
+              </div>
+              <span className="hidden text-sm text-[hsl(var(--foreground-secondary))] sm:block">Ваши учебные разделы</span>
+            </div>
+            <div className="space-y-3">
+              {quickLinks.map((link, index) => (
+                <Link key={link.href} href={link.href} className="group dashboard-interactive block rounded-[1.5rem] focus-visible:ring-offset-4">
+                  <CardHover className={`flex items-center gap-4 p-5 animate-fade-in stagger-${index + 1}`}>
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${link.gradient} text-white shadow-soft-md transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3`}>
+                      {link.icon}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="mb-1 text-base font-semibold text-slate-900 transition-colors group-hover:text-[hsl(var(--primary))]">{link.title}</h3>
+                      <p className="text-sm leading-5 text-[hsl(var(--foreground-secondary))]">{link.description}</p>
+                    </div>
+                    <svg className="h-5 w-5 shrink-0 text-lavender-500 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </CardHover>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="animate-fade-in stagger-6">
+            <Card className="h-full p-6 sm:p-7">
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-lavender-700">Планирование</p>
+                  <h2 className="dashboard-section-title">Скоро к сдаче</h2>
+                </div>
+                <Badge variant="secondary" className="shrink-0 bg-lavender-50 text-lavender-800">{progress?.upcoming.length ?? 0} работ</Badge>
+              </div>
+              <div className="space-y-2">
+                {(progress?.upcoming ?? []).slice(0, 4).map(item => (
+                  <Link key={item.id} href={`/student/lab-works/${labWorkSlug(item.number, item.title)}`} className="flex items-center justify-between gap-3 rounded-xl bg-lavender-50/60 px-4 py-3 transition hover:bg-lavender-100/70">
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-slate-800">{item.title}</span>
+                      <span className="block truncate text-xs text-slate-500">{item.discipline}</span>
+                    </span>
+                    <span className="shrink-0 text-xs font-medium text-lavender-800">{new Date(item.dueDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}</span>
+                  </Link>
+                ))}
+                {!progress?.upcoming.length && <p className="rounded-xl bg-lavender-50/60 px-4 py-6 text-center text-sm text-slate-500">Нет предстоящих дедлайнов</p>}
+              </div>
+            </Card>
+          </section>
         </div>
       </div>
     </div>

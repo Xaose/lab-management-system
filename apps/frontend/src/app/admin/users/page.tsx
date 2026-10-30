@@ -7,9 +7,30 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Select } from '@/components/ui/select'
 
 type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN'
 type UserStatus = 'ACTIVE' | 'BLOCKED' | 'INACTIVE'
+type CreateUserRole = 'STUDENT' | 'TEACHER' | 'ADMIN'
+
+interface CreateUserForm {
+  email: string
+  password: string
+  firstName: string
+  lastName: string
+  patronymic: string
+  phone: string
+  role: CreateUserRole
+  studentIdNumber: string
+  groupId: string
+  course: number
+  program: string
+  faculty: string
+  position: string
+  department: string
+  degree: string
+  title: string
+}
 
 interface User {
   id: string
@@ -47,6 +68,27 @@ export default function UsersPage() {
     search: ''
   })
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([])
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [formData, setFormData] = useState<CreateUserForm>({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    patronymic: '',
+    phone: '',
+    role: 'STUDENT',
+    studentIdNumber: '',
+    groupId: '',
+    course: 1,
+    program: '',
+    faculty: '',
+    position: '',
+    department: '',
+    degree: '',
+    title: ''
+  })
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -69,6 +111,86 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers()
   }, [fetchUsers])
+
+  useEffect(() => {
+    if (!showCreateModal || formData.role !== 'STUDENT') return
+
+    apiClient.get('/groups').then((response) => {
+      setGroups(response.data?.groups || [])
+    }).catch((err: any) => {
+      setCreateError(err.response?.data?.error || 'Ошибка загрузки групп')
+    })
+  }, [showCreateModal, formData.role])
+
+  const resetCreateForm = () => {
+    setFormData({
+      email: '',
+      password: '',
+      firstName: '',
+      lastName: '',
+      patronymic: '',
+      phone: '',
+      role: 'STUDENT',
+      studentIdNumber: '',
+      groupId: '',
+      course: 1,
+      program: '',
+      faculty: '',
+      position: '',
+      department: '',
+      degree: '',
+      title: ''
+    })
+    setCreateError(null)
+  }
+
+  const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setCreating(true)
+    setCreateError(null)
+
+    const data = {
+      email: formData.email.trim(),
+      password: formData.password,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      patronymic: formData.patronymic.trim() || undefined,
+      phone: formData.phone.trim() || undefined,
+      role: formData.role,
+      ...(formData.role === 'STUDENT'
+        ? {
+            studentData: {
+              studentIdNumber: formData.studentIdNumber.trim(),
+              groupId: formData.groupId,
+              course: formData.course,
+              program: formData.program.trim(),
+              faculty: formData.faculty.trim()
+            }
+          }
+        : {}),
+      ...(formData.role === 'TEACHER'
+        ? {
+            teacherData: {
+              position: formData.position.trim(),
+              department: formData.department.trim(),
+              degree: formData.degree.trim() || undefined,
+              title: formData.title.trim() || undefined
+            }
+          }
+        : {})
+    }
+
+    try {
+      await apiClient.post('/users', data)
+      setShowCreateModal(false)
+      resetCreateForm()
+      await fetchUsers()
+    } catch (err: any) {
+      setCreateError(err.response?.data?.error || 'Ошибка создания пользователя')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const handleBlockUser = async (userId: string) => {
     if (!confirm('Вы уверены, что хотите заблокировать этого пользователя?')) return
@@ -155,7 +277,7 @@ export default function UsersPage() {
               Управление учётными записями студентов, преподавателей и администраторов
             </p>
           </div>
-          <Button size="lg" onClick={() => setShowCreateModal(true)} className="gap-2">
+          <Button size="lg" onClick={() => { setCreateError(null); setShowCreateModal(true) }} className="gap-2">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -188,30 +310,12 @@ export default function UsersPage() {
 
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">Роль</label>
-              <select
-                value={filters.role}
-                onChange={(e) => setFilters({ ...filters, role: e.target.value })}
-                className="flex h-11 w-full rounded-xl border border-[hsl(var(--border))] bg-white/90 px-4 py-3 text-sm shadow-soft backdrop-blur-sm transition-all duration-200 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
-              >
-                <option value="">Все роли</option>
-                <option value="STUDENT">Студент</option>
-                <option value="TEACHER">Преподаватель</option>
-                <option value="ADMIN">Администратор</option>
-              </select>
+              <Select value={filters.role} onChange={value => setFilters({ ...filters, role: value })} options={[{ value: '', label: 'Все роли' }, { value: 'STUDENT', label: 'Студент' }, { value: 'TEACHER', label: 'Преподаватель' }, { value: 'ADMIN', label: 'Администратор' }]} />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">Статус</label>
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="flex h-11 w-full rounded-xl border border-[hsl(var(--border))] bg-white/90 px-4 py-3 text-sm shadow-soft backdrop-blur-sm transition-all duration-200 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
-              >
-                <option value="">Все статусы</option>
-                <option value="ACTIVE">Активен</option>
-                <option value="BLOCKED">Заблокирован</option>
-                <option value="INACTIVE">Неактивен</option>
-              </select>
+              <Select value={filters.status} onChange={value => setFilters({ ...filters, status: value })} options={[{ value: '', label: 'Все статусы' }, { value: 'ACTIVE', label: 'Активен' }, { value: 'BLOCKED', label: 'Заблокирован' }, { value: 'INACTIVE', label: 'Неактивен' }]} />
             </div>
 
             <div className="flex items-end">
@@ -338,6 +442,66 @@ export default function UsersPage() {
           </div>
         </Card>
       </div>
+
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !creating) setShowCreateModal(false)
+        }}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-950">Создать пользователя</h2>
+                <p className="mt-1 text-sm text-slate-500">Заполните данные новой учётной записи</p>
+              </div>
+              <button type="button" onClick={() => setShowCreateModal(false)} disabled={creating} className="text-2xl leading-none text-slate-400 hover:text-slate-700" aria-label="Закрыть">
+                ×
+              </button>
+            </div>
+
+            {createError && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{createError}</div>}
+
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input required type="email" placeholder="Email *" value={formData.email} onChange={(event) => setFormData({ ...formData, email: event.target.value })} />
+                <Input required minLength={6} type="password" placeholder="Пароль *" value={formData.password} onChange={(event) => setFormData({ ...formData, password: event.target.value })} />
+                <Input required placeholder="Имя *" value={formData.firstName} onChange={(event) => setFormData({ ...formData, firstName: event.target.value })} />
+                <Input required placeholder="Фамилия *" value={formData.lastName} onChange={(event) => setFormData({ ...formData, lastName: event.target.value })} />
+                <Input placeholder="Отчество" value={formData.patronymic} onChange={(event) => setFormData({ ...formData, patronymic: event.target.value })} />
+                <Input placeholder="Телефон" value={formData.phone} onChange={(event) => setFormData({ ...formData, phone: event.target.value })} />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Роль *</label>
+                <Select required value={formData.role} onChange={value => setFormData({ ...formData, role: value as CreateUserRole })} options={[{ value: 'STUDENT', label: 'Студент' }, { value: 'TEACHER', label: 'Преподаватель' }, { value: 'ADMIN', label: 'Администратор' }]} />
+              </div>
+
+              {formData.role === 'STUDENT' && (
+                <div className="grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
+                  <Input required placeholder="Номер зачётной книжки *" value={formData.studentIdNumber} onChange={(event) => setFormData({ ...formData, studentIdNumber: event.target.value })} />
+                  <Select required value={formData.groupId} onChange={value => setFormData({ ...formData, groupId: value })} placeholder="Выберите группу *" options={groups.map(group => ({ value: group.id, label: group.name }))} />
+                  <Select required value={String(formData.course)} onChange={value => setFormData({ ...formData, course: Number(value) })} options={[1, 2, 3, 4, 5, 6].map(course => ({ value: String(course), label: `${course} курс` }))} />
+                  <Input required placeholder="Направление подготовки *" value={formData.program} onChange={(event) => setFormData({ ...formData, program: event.target.value })} />
+                  <Input required placeholder="Факультет *" value={formData.faculty} onChange={(event) => setFormData({ ...formData, faculty: event.target.value })} />
+                </div>
+              )}
+
+              {formData.role === 'TEACHER' && (
+                <div className="grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
+                  <Input required placeholder="Должность *" value={formData.position} onChange={(event) => setFormData({ ...formData, position: event.target.value })} />
+                  <Input required placeholder="Кафедра *" value={formData.department} onChange={(event) => setFormData({ ...formData, department: event.target.value })} />
+                  <Input placeholder="Учёная степень" value={formData.degree} onChange={(event) => setFormData({ ...formData, degree: event.target.value })} />
+                  <Input placeholder="Учёное звание" value={formData.title} onChange={(event) => setFormData({ ...formData, title: event.target.value })} />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+                <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)} disabled={creating}>Отмена</Button>
+                <Button type="submit" disabled={creating}>{creating ? 'Создание...' : 'Создать пользователя'}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

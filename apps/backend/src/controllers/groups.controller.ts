@@ -3,6 +3,14 @@ import { z } from 'zod'
 import prisma from '@lab/database'
 import { ApiResponse } from '@lab/types'
 import { AppError, asyncHandler } from '../middleware/error.middleware'
+import { slugify } from '../utils/slug'
+
+async function resolveGroupId(value: string): Promise<string | null> {
+  const byId = await prisma.group.findUnique({ where: { id: value }, select: { id: true } })
+  if (byId) return byId.id
+  const groups = await prisma.group.findMany({ select: { id: true, name: true } })
+  return groups.find(group => slugify(group.name) === value)?.id || null
+}
 
 // Validation schemas
 const createGroupSchema = z.object({
@@ -110,10 +118,11 @@ export const getGroups = asyncHandler(async (req: Request, res: Response) => {
 
 // GET /api/groups/:id - получить группу по ID
 export const getGroupById = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params
+  const groupId = await resolveGroupId(req.params.id)
+  if (!groupId) throw new AppError(404, 'Group not found')
 
   const group = await prisma.group.findUnique({
-    where: { id },
+    where: { id: groupId },
     include: {
       students: {
         include: {
@@ -162,7 +171,22 @@ export const getGroupById = asyncHandler(async (req: Request, res: Response) => 
 
   if (req.user?.role === 'STUDENT') {
     const student = await prisma.student.findUnique({ where: { userId: req.user.userId } })
-    if (student?.groupId !== id) {
+    if (student?.groupId !== groupId) {
+      throw new AppError(403, 'Access denied')
+    }
+
+  }
+
+  if (req.user?.role === 'TEACHER') {
+    const teacher = await prisma.teacher.findUnique({
+      where: { userId: req.user.userId },
+      include: { disciplinesCreated: true, disciplinesTeaching: true }
+    })
+    const disciplineIds = [
+      ...(teacher?.disciplinesCreated || []).map(discipline => discipline.id),
+      ...(teacher?.disciplinesTeaching || []).map(assignment => assignment.disciplineId)
+    ]
+    if (!group.disciplines.some(assignment => disciplineIds.includes(assignment.disciplineId))) {
       throw new AppError(403, 'Access denied')
     }
   }

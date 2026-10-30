@@ -96,8 +96,20 @@ class ApiClient {
     return response.data
   }
 
+  async download(url: string) {
+    const response = await this.client.get(url, { responseType: 'blob' })
+    return response.data as Blob
+  }
+
   async post<T = any>(url: string, data?: any) {
     const response = await this.client.post<ApiResponse<T>>(url, data)
+    return response.data
+  }
+
+  async upload<T = any>(url: string, data: FormData) {
+    const response = await this.client.post<ApiResponse<T>>(url, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
     return response.data
   }
 
@@ -108,6 +120,11 @@ class ApiClient {
 
   async delete<T = any>(url: string) {
     const response = await this.client.delete<ApiResponse<T>>(url)
+    return response.data
+  }
+
+  async patch<T = any>(url: string, data?: any) {
+    const response = await this.client.patch<ApiResponse<T>>(url, data)
     return response.data
   }
 }

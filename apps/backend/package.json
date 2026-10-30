@@ -6,6 +6,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "start:worker": "node dist/jobs/deadline-reminder.js",
+    "dev:worker": "DEADLINE_REMINDER_DAEMON=true tsx src/jobs/deadline-reminder.ts",
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {

@@ -10,9 +10,11 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm run dev --workspace=apps/backend",
+    "dev:worker": "npm run dev:worker --workspace=apps/backend",
     "dev:frontend": "npm run dev --workspace=apps/frontend",
     "build": "npm run build --workspace=packages/database && npm run build --workspace=apps/backend && npm run build --workspace=apps/frontend",
     "db:migrate": "prisma migrate dev --schema=packages/database/prisma/schema.prisma",
+    "db:migrate:deploy": "npm run db:migrate:deploy --workspace=packages/database",
     "db:reset": "prisma migrate reset --schema=packages/database/prisma/schema.prisma --force",
     "db:studio": "npm run db:studio --workspace=packages/database",
     "db:seed": "tsx packages/database/prisma/seed.ts"

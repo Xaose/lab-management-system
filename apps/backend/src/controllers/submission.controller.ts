@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import prisma from '@lab/database'
 import { AppError, asyncHandler } from '../middleware/error.middleware'
+import { recordAudit } from '../services/audit.service'
 
 // Validation schemas
 const createSubmissionSchema = z.object({
@@ -501,6 +502,11 @@ export const createReview = asyncHandler(async (req: Request, res: Response) => 
   const submission = await prisma.submission.findUnique({
     where: { id },
     include: {
+      student: {
+        select: {
+          userId: true
+        }
+      },
       labWork: {
         include: {
           criteria: true,
@@ -569,6 +575,13 @@ export const createReview = asyncHandler(async (req: Request, res: Response) => 
           }
         }
       }
+    })
+    await recordAudit({
+      userId: userId!,
+      action: 'REVIEW_SUBMISSION',
+      entity: 'Submission',
+      entityId: id,
+      details: { result: validatedData.result, score: validatedData.score }
     })
     await transaction.submission.update({
       where: { id },

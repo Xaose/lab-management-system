@@ -5,18 +5,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
 import FileUpload from '@/components/FileUpload'
+import { Select } from '@/components/ui/select'
+import DateTimePicker from '@/components/DateTimePicker'
 
 interface Discipline {
   id: string
   name: string
-}
-
-interface Criterion {
-  id: string
-  name: string
-  description: string
-  maxScore: number
-  order: number
 }
 
 interface UploadedFile {
@@ -33,6 +27,7 @@ export default function CreateLabWorkPage() {
   const [error, setError] = useState('')
   const [createdLabWorkId, setCreatedLabWorkId] = useState<string | null>(null)
   const [materialFiles, setMaterialFiles] = useState<UploadedFile[]>([])
+  const [assignmentFiles, setAssignmentFiles] = useState<File[]>([])
 
   const [formData, setFormData] = useState({
     disciplineId: '',
@@ -49,15 +44,13 @@ export default function CreateLabWorkPage() {
     status: 'DRAFT' as 'DRAFT' | 'PUBLISHED'
   })
 
-  const [criteria, setCriteria] = useState<Criterion[]>([])
-  const [newCriterion, setNewCriterion] = useState({
-    name: '',
-    description: '',
-    maxScore: 10
-  })
-
   useEffect(() => {
     loadDisciplines()
+  }, [])
+
+  useEffect(() => {
+    const disciplineId = new URLSearchParams(window.location.search).get('disciplineId')
+    if (disciplineId) setFormData(current => ({ ...current, disciplineId }))
   }, [])
 
   const loadDisciplines = async () => {
@@ -70,31 +63,6 @@ export default function CreateLabWorkPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleAddCriterion = () => {
-    if (!newCriterion.name || newCriterion.maxScore <= 0) {
-      return
-    }
-
-    setCriteria([
-      ...criteria,
-      {
-        id: `temp-${Date.now()}`,
-        ...newCriterion,
-        order: criteria.length
-      }
-    ])
-
-    setNewCriterion({
-      name: '',
-      description: '',
-      maxScore: 10
-    })
-  }
-
-  const handleRemoveCriterion = (id: string) => {
-    setCriteria(criteria.filter(c => c.id !== id))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -129,18 +97,29 @@ export default function CreateLabWorkPage() {
 
       if (response.success) {
         const labWorkId = response.data.labWork.id
-
-        // Add criteria if any
-        for (const criterion of criteria) {
-          await apiClient.post(`/lab-works/${labWorkId}/criteria`, {
-            name: criterion.name,
-            description: criterion.description,
-            maxScore: criterion.maxScore,
-            order: criterion.order
-          })
+        const token = (() => {
+          try {
+            const storage = localStorage.getItem('auth-storage')
+            return storage ? JSON.parse(storage).state?.token || '' : ''
+          } catch {
+            return ''
+          }
+        })()
+        for (const file of assignmentFiles) {
+          const fileData = new FormData()
+          fileData.append('file', file)
+          const uploadResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/files/lab-works/${labWorkId}/upload`,
+            { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fileData }
+          )
+          const uploadData = await uploadResponse.json()
+          if (!uploadResponse.ok || !uploadData.success) {
+            throw new Error(uploadData.error || `Не удалось прикрепить файл "${file.name}"`)
+          }
         }
 
         setCreatedLabWorkId(labWorkId)
+        setAssignmentFiles([])
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Ошибка создания лабораторной работы')
@@ -248,7 +227,6 @@ export default function CreateLabWorkPage() {
                   requirements: '',
                   dueDate: ''
                 })
-                setCriteria([])
               }}
               className="w-full px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium"
             >
@@ -287,17 +265,7 @@ export default function CreateLabWorkPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Дисциплина *
                 </label>
-                <select
-                  value={formData.disciplineId}
-                  onChange={(e) => setFormData({ ...formData, disciplineId: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition outline-none"
-                >
-                  <option value="">Выберите дисциплину</option>
-                  {disciplines.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
+                <Select required value={formData.disciplineId} onChange={value => setFormData({ ...formData, disciplineId: value })} placeholder="Выберите дисциплину" options={disciplines.map(d => ({ value: d.id, label: d.name }))} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -375,11 +343,9 @@ export default function CreateLabWorkPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Срок сдачи
                   </label>
-                  <input
-                    type="datetime-local"
+                  <DateTimePicker
                     value={formData.dueDate}
-                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition outline-none"
+                    onChange={(dueDate) => setFormData({ ...formData, dueDate })}
                   />
                 </div>
                 <div>
@@ -413,14 +379,21 @@ export default function CreateLabWorkPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Статус публикации
                 </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'DRAFT' | 'PUBLISHED' })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition outline-none"
-                >
-                  <option value="DRAFT">Черновик (не видна студентам)</option>
-                  <option value="PUBLISHED">Опубликована (видна студентам)</option>
-                </select>
+                <Select value={formData.status} onChange={value => setFormData({ ...formData, status: value as 'DRAFT' | 'PUBLISHED' })} options={[{ value: 'DRAFT', label: 'Черновик (не видна студентам)' }, { value: 'PUBLISHED', label: 'Опубликована (видна студентам)' }]} />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Файл задания
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={event => setAssignmentFiles(Array.from(event.target.files || []))}
+                  accept=".pdf,.docx,.doc,.zip,.rar,.txt,.png,.jpg,.jpeg"
+                  className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm"
+                />
+                <p className="mt-2 text-xs text-gray-500">Файл прикрепится сразу после создания лабораторной работы.</p>
               </div>
             </div>
           </div>
@@ -464,71 +437,6 @@ export default function CreateLabWorkPage() {
                   max="100"
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition outline-none"
                 />
-              </div>
-            </div>
-          </div>
-
-          {/* Criteria */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Критерии оценивания</h2>
-
-            {criteria.length > 0 && (
-              <div className="space-y-2 mb-4">
-                {criteria.map((criterion) => (
-                  <div key={criterion.id} className="flex items-start justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{criterion.name}</div>
-                      {criterion.description && (
-                        <div className="text-sm text-gray-600 mt-1">{criterion.description}</div>
-                      )}
-                      <div className="text-sm text-primary-600 mt-1">Макс. балл: {criterion.maxScore}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveCriterion(criterion.id)}
-                      className="ml-3 p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-              <input
-                type="text"
-                value={newCriterion.name}
-                onChange={(e) => setNewCriterion({ ...newCriterion, name: e.target.value })}
-                placeholder="Название критерия"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition outline-none"
-              />
-              <input
-                type="text"
-                value={newCriterion.description}
-                onChange={(e) => setNewCriterion({ ...newCriterion, description: e.target.value })}
-                placeholder="Описание (необязательно)"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition outline-none"
-              />
-              <div className="flex gap-3">
-                <input
-                  type="number"
-                  value={newCriterion.maxScore}
-                  onChange={(e) => setNewCriterion({ ...newCriterion, maxScore: parseInt(e.target.value) || 0 })}
-                  min="1"
-                  placeholder="Макс. балл"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddCriterion}
-                  disabled={!newCriterion.name || newCriterion.maxScore <= 0}
-                  className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Добавить
-                </button>
               </div>
             </div>
           </div>

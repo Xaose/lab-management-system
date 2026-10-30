@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
+import { slugify } from '@/lib/slug'
+import { Select } from '@/components/ui/select'
 
 type DisciplineStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
 
@@ -99,16 +102,16 @@ export default function DisciplinesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="dashboard-page min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Управление дисциплинами</h1>
-          <a
-            href="/teacher/disciplines/create"
+          <Link
+            href="/teacher/disciplines"
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
           >
             + Создать дисциплину
-          </a>
+          </Link>
         </div>
 
         {error && (
@@ -137,53 +140,21 @@ export default function DisciplinesPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Статус
               </label>
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="">Все статусы</option>
-                <option value="DRAFT">Черновик</option>
-                <option value="PUBLISHED">Опубликована</option>
-                <option value="ARCHIVED">Архивная</option>
-              </select>
+              <Select value={filters.status} onChange={value => setFilters({ ...filters, status: value })} options={[{ value: '', label: 'Все статусы' }, { value: 'DRAFT', label: 'Черновик' }, { value: 'PUBLISHED', label: 'Опубликована' }, { value: 'ARCHIVED', label: 'Архивная' }]} />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Учебный год
               </label>
-              <select
-                value={filters.year}
-                onChange={(e) => setFilters({ ...filters, year: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="">Все годы</option>
-                <option value="2024">2024</option>
-                <option value="2025">2025</option>
-                <option value="2026">2026</option>
-              </select>
+              <Select value={filters.year} onChange={value => setFilters({ ...filters, year: value })} options={[{ value: '', label: 'Все годы' }, { value: '2024', label: '2024' }, { value: '2025', label: '2025' }, { value: '2026', label: '2026' }]} />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Семестр
               </label>
-              <select
-                value={filters.semester}
-                onChange={(e) => setFilters({ ...filters, semester: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="">Все семестры</option>
-                <option value="1">1 семестр</option>
-                <option value="2">2 семестр</option>
-                <option value="3">3 семестр</option>
-                <option value="4">4 семестр</option>
-                <option value="5">5 семестр</option>
-                <option value="6">6 семестр</option>
-                <option value="7">7 семестр</option>
-                <option value="8">8 семестр</option>
-              </select>
+              <Select value={filters.semester} onChange={value => setFilters({ ...filters, semester: value })} options={[{ value: '', label: 'Все семестры' }, ...Array.from({ length: 8 }, (_, index) => ({ value: String(index + 1), label: `${index + 1} семестр` }))]} />
             </div>
           </div>
 
@@ -239,12 +210,12 @@ export default function DisciplinesPage() {
                 </div>
 
                 <div className="flex gap-2 ml-4">
-                  <a
-                    href={`/admin/disciplines/${discipline.id}`}
+                  <Link
+                    href={`/admin/disciplines/${slugify(discipline.name)}`}
                     className="px-4 py-2 text-primary-600 hover:bg-primary-50 rounded-lg transition"
                   >
                     Подробнее
-                  </a>
+                  </Link>
                   <button
                     onClick={() => handleDeleteDiscipline(discipline.id)}
                     className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition"

@@ -3,6 +3,14 @@ import { z } from 'zod'
 import prisma from '@lab/database'
 import { ApiResponse } from '@lab/types'
 import { AppError, asyncHandler } from '../middleware/error.middleware'
+import { slugify } from '../utils/slug'
+
+async function resolveDisciplineId(value: string): Promise<string | null> {
+  const byId = await prisma.discipline.findUnique({ where: { id: value }, select: { id: true } })
+  if (byId) return byId.id
+  const disciplines = await prisma.discipline.findMany({ select: { id: true, name: true } })
+  return disciplines.find(discipline => slugify(discipline.name) === value)?.id || null
+}
 
 // Validation schemas
 const createDisciplineSchema = z.object({
@@ -108,6 +116,20 @@ export const getDisciplines = asyncHandler(async (req: Request, res: Response) =
             }
           }
         },
+        teachers: {
+          include: {
+            teacher: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true
+                  }
+                }
+              }
+            }
+          }
+        },
         _count: {
           select: {
             teachers: true,
@@ -139,10 +161,11 @@ export const getDisciplines = asyncHandler(async (req: Request, res: Response) =
 
 // GET /api/disciplines/:id - получить дисциплину по ID
 export const getDisciplineById = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params
+  const disciplineId = await resolveDisciplineId(req.params.id)
+  if (!disciplineId) throw new AppError(404, 'Discipline not found')
 
   const discipline = await prisma.discipline.findUnique({
-    where: { id },
+    where: { id: disciplineId },
     include: {
       createdBy: {
         include: {

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
+import { Select } from '@/components/ui/select'
 
 interface Submission {
   id: string
@@ -456,16 +457,7 @@ export default function TeacherSubmissionReviewPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Результат
                   </label>
-                  <select
-                    value={reviewForm.result}
-                    onChange={(e) => setReviewForm({ ...reviewForm, result: e.target.value as any })}
-                    disabled={!canReview && submission.reviews.length === 0}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition outline-none disabled:bg-gray-50 disabled:text-gray-500"
-                  >
-                    <option value="ACCEPTED">Принята</option>
-                    <option value="REVISION">На доработку</option>
-                    <option value="REJECTED">Отклонена</option>
-                  </select>
+                  <Select value={reviewForm.result} onChange={value => setReviewForm({ ...reviewForm, result: value as typeof reviewForm.result })} disabled={!canReview && submission.reviews.length === 0} options={[{ value: 'ACCEPTED', label: 'Принята' }, { value: 'REVISION', label: 'На доработку' }, { value: 'REJECTED', label: 'Отклонена' }]} />
                 </div>
 
                 {submission.labWork.criteria.length > 0 ? (

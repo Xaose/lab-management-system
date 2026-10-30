@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { apiClient } from '@/lib/api-client'
+import Link from 'next/link'
+import { labWorkSlug } from '@/lib/slug'
 
 interface Submission {
   id: string
@@ -110,7 +112,9 @@ export default function StudentSubmissionsPage() {
                         {submission.labWork.discipline.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ЛР №{submission.labWork.number}: {submission.labWork.title}
+                        <Link href={`/student/lab-works/${labWorkSlug(submission.labWork.number, submission.labWork.title)}`} className="font-medium text-lavender-700 hover:text-lavender-900">
+                          ЛР №{submission.labWork.number}: {submission.labWork.title}
+                        </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {submission.attemptNumber}

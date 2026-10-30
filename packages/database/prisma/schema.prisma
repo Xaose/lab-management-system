@@ -37,6 +37,7 @@ model User {
   lastName     String     @map("last_name")
   patronymic   String?
   phone        String?
+  avatarUrl    String?    @map("avatar_url") @db.Text
 
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")

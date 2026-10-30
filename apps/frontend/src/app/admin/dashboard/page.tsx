@@ -83,6 +83,7 @@ export default function AdminDashboard() {
   const stats = [
     {
       label: 'Пользователей',
+      href: '/admin/users',
       value: dashboardStats.users === null ? '...' : String(dashboardStats.users),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,6 +95,7 @@ export default function AdminDashboard() {
     },
     {
       label: 'Групп',
+      href: '/admin/groups',
       value: dashboardStats.groups === null ? '...' : String(dashboardStats.groups),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,6 +107,7 @@ export default function AdminDashboard() {
     },
     {
       label: 'Дисциплин',
+      href: '/admin/disciplines',
       value: dashboardStats.disciplines === null ? '...' : String(dashboardStats.disciplines),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,6 +119,7 @@ export default function AdminDashboard() {
     },
     {
       label: 'Лабораторных',
+      href: '/admin/disciplines',
       value: dashboardStats.labWorks === null ? '...' : String(dashboardStats.labWorks),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,62 +129,82 @@ export default function AdminDashboard() {
       color: 'text-amber-600',
       bgColor: 'bg-amber-50'
     },
-  ]
+  ] as const
 
   return (
     <div className="dashboard-page">
-      <div className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
-        <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between animate-fade-in">
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10 xl:px-10">
+        <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between animate-fade-in">
           <div>
-            <Badge variant="secondary" className="mb-3 shadow-soft">Центр управления</Badge>
-            <h1 className="mb-2 text-4xl font-bold tracking-tight text-slate-950">Панель администратора</h1>
-            <p className="text-base text-[hsl(var(--foreground-secondary))]">
+            <Badge variant="secondary" className="mb-3 border-white/70 bg-white/60 shadow-soft">Центр управления</Badge>
+            <h1 className="mb-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Панель администратора</h1>
+            <p className="max-w-xl text-sm leading-6 text-[hsl(var(--foreground-secondary))] sm:text-base">
               Управление пользователями, группами и учебными дисциплинами.
             </p>
           </div>
-          <Badge variant="accepted">Система онлайн</Badge>
+          <Badge variant="accepted" className="self-start sm:self-auto">Система онлайн</Badge>
         </div>
 
-        <div className="mb-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="dashboard-hero mb-6 animate-fade-in">
+          <div className="relative z-10 max-w-2xl">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">LabFlow · администрирование</p>
+            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Всё учебное пространство — под рукой</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/75">Управляйте пользователями, группами и дисциплинами из одного места.</p>
+          </div>
+          <Link href="/admin/users" className="dashboard-hero-link">
+            Управление пользователями
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </Link>
+        </section>
+        <div className="mb-6 flex justify-end">
+          <Link href="/admin/audit" className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-lavender-300 hover:text-lavender-700">Журнал действий</Link>
+        </div>
+
+        <div className="mb-9 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat, index) => (
-            <Card key={index} className={`p-6 animate-fade-in stagger-${index + 1}`}>
-              <div className="mb-4 flex items-center justify-between">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-[0.95rem] ${stat.bgColor} ${stat.color} shadow-soft transition-transform hover:scale-110`}>
+            <Link key={index} href={stat.href} className="group dashboard-interactive rounded-[1.5rem]">
+              <Card className={`dashboard-stat-card animate-fade-in stagger-${index + 1}`}>
+              <div className="relative z-10 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-[hsl(var(--foreground-secondary))]">{stat.label}</div>
+                  <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{stat.value}</div>
+                </div>
+                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${stat.bgColor} ${stat.color} shadow-soft transition-transform duration-300 group-hover:rotate-3 group-hover:scale-105`}>
                   {stat.icon}
                 </div>
               </div>
-              <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-              <div className="mt-1 text-sm text-[hsl(var(--foreground-secondary))]">{stat.label}</div>
-            </Card>
+              </Card>
+            </Link>
           ))}
         </div>
 
-        <div className="animate-fade-in stagger-5">
-          <h2 className="mb-5 text-xl font-semibold text-slate-900">Управление системой</h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <section className="animate-fade-in stagger-5">
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-lavender-700">Пространство</p>
+              <h2 className="dashboard-section-title">Управление системой</h2>
+            </div>
+            <span className="hidden text-sm text-[hsl(var(--foreground-secondary))] sm:block">Быстрый доступ к разделам</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {menuItems.map((item, index) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="group"
-              >
-                <CardHover className="p-7 transition-all duration-200">
-                  <div className="flex items-start gap-5">
-                    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.1rem] bg-gradient-to-br ${item.gradient} text-white shadow-soft-md transition-transform duration-200 group-hover:scale-110 group-hover:shadow-soft-lg`}>
-                      {item.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="mb-1.5 text-lg font-semibold text-slate-900 transition-colors group-hover:text-[hsl(var(--primary))]">
-                        {item.title}
-                      </h3>
-                      <p className="text-sm text-[hsl(var(--foreground-secondary))] line-clamp-2">{item.description}</p>
-                    </div>
+              <Link key={item.href} href={item.href} className="group dashboard-interactive rounded-[1.5rem] focus-visible:ring-offset-4">
+                <CardHover className={`flex h-full items-center gap-4 p-5 animate-fade-in stagger-${index + 1}`}>
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${item.gradient} text-white shadow-soft-md transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3`}>
+                    {item.icon}
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="mb-1 text-base font-semibold text-slate-900 transition-colors group-hover:text-[hsl(var(--primary))]">{item.title}</h3>
+                    <p className="line-clamp-2 text-sm leading-5 text-[hsl(var(--foreground-secondary))]">{item.description}</p>
+                  </div>
+                  <svg className="h-5 w-5 shrink-0 text-lavender-500 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </CardHover>
               </Link>
             ))}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   )

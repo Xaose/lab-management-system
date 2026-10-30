@@ -53,3 +53,12 @@ export const uploadMultiple = upload.array('files', 10)
 
 // Single file upload
 export const uploadSingle = upload.single('file')
+
+export const uploadAvatar = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) cb(null, true)
+    else cb(new Error('Avatar must be a PNG, JPEG, or WebP image'))
+  }
+}).single('avatar')

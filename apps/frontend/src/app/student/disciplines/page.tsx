@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
+import { slugify } from '@/lib/slug'
 import { Card, CardHover } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -87,7 +88,7 @@ export default function StudentDisciplinesPage() {
             {disciplines.map((discipline, index) => (
               <Link
                 key={discipline.id}
-                href={`/student/disciplines/${discipline.id}`}
+                href={`/student/disciplines/${slugify(discipline.name)}`}
                 className={`group animate-fade-in stagger-${Math.min(index + 1, 6)}`}
               >
                 <CardHover className="p-6 transition-all duration-200">

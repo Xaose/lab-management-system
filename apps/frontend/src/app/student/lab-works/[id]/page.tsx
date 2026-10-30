@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
+import { slugify } from '@/lib/slug'
 import FileUpload from '@/components/FileUpload'
+import toast from 'react-hot-toast'
 
 interface LabWork {
   id: string
@@ -116,6 +118,7 @@ export default function StudentLabWorkPage() {
 
       if (response.success) {
         setSubmission(response.data.submission)
+        toast.success('Сдача создана. Теперь загрузите файл.')
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Ошибка создания сдачи')
@@ -161,6 +164,7 @@ export default function StudentLabWorkPage() {
 
       if (response.success) {
         await loadData()
+        toast.success('Работа отправлена на проверку')
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Ошибка отправки работы')
@@ -275,7 +279,7 @@ export default function StudentLabWorkPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <Link
-            href={`/student/disciplines/${labWork.discipline.id}`}
+            href={`/student/disciplines/${slugify(labWork.discipline.name)}`}
             className="inline-flex items-center text-primary-600 hover:text-primary-700 mb-4"
           >
             <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

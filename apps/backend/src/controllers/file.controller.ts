@@ -6,6 +6,11 @@ import unzipper from 'unzipper'
 import { AppError, asyncHandler } from '../middleware/error.middleware'
 import { getUploadsDir } from '../middleware/upload.middleware'
 
+const getOriginalFileName = (name: string) => {
+  const decoded = Buffer.from(name, 'latin1').toString('utf8')
+  return decoded.includes('\ufffd') ? name : decoded
+}
+
 const removeUploadedFile = (filePath: string) => {
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath)
@@ -131,7 +136,7 @@ export const uploadSubmissionFile = asyncHandler(async (req: Request, res: Respo
   try {
     file = await prisma.file.create({
       data: {
-        originalName: req.file.originalname,
+        originalName: getOriginalFileName(req.file.originalname),
         storedName: req.file.filename,
         extension: path.extname(req.file.originalname),
         mimeType: req.file.mimetype,
@@ -199,7 +204,7 @@ export const uploadLabWorkFile = asyncHandler(async (req: Request, res: Response
   try {
     file = await prisma.file.create({
       data: {
-        originalName: req.file.originalname,
+        originalName: getOriginalFileName(req.file.originalname),
         storedName: req.file.filename,
         extension: path.extname(req.file.originalname),
         mimeType: req.file.mimetype,
@@ -317,7 +322,11 @@ export const downloadFile = asyncHandler(async (req: Request, res: Response) => 
     throw new AppError(404, 'File not found on disk')
   }
 
-  // Send file
+  // PDF and images can be previewed inline; other files keep download behavior.
+  if (file.mimeType === 'application/pdf' || file.mimeType.startsWith('image/')) {
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(file.originalName)}`)
+    return res.sendFile(resolvedPath)
+  }
   res.download(resolvedPath, file.originalName)
 })
 

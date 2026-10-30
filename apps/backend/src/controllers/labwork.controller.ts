@@ -2,6 +2,15 @@ import { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import prisma from '@lab/database'
 import { AppError, asyncHandler } from '../middleware/error.middleware'
+import { recordAudit } from '../services/audit.service'
+import { labWorkSlug } from '../utils/slug'
+
+async function resolveLabWorkId(value: string): Promise<string | null> {
+  const byId = await prisma.labWork.findUnique({ where: { id: value }, select: { id: true } })
+  if (byId) return byId.id
+  const labWorks = await prisma.labWork.findMany({ select: { id: true, number: true, title: true } })
+  return labWorks.find(labWork => labWorkSlug(labWork.number, labWork.title) === value)?.id || null
+}
 
 // Validation schemas
 const createLabWorkSchema = z.object({
@@ -10,10 +19,10 @@ const createLabWorkSchema = z.object({
   title: z.string().min(1),
   description: z.string(),
   requirements: z.string().optional(),
-  dueDate: z.string().datetime().optional(),
+  dueDate: z.string().datetime().nullable().optional(),
   maxScore: z.number().int().positive(),
   allowResubmit: z.boolean().default(true),
-  maxAttempts: z.number().int().positive().optional(),
+  maxAttempts: z.number().int().positive().nullable().optional(),
   allowedFormats: z.array(z.string()).default(['pdf', 'docx', 'zip']),
   maxFileSize: z.number().int().positive().default(10485760), // 10MB
   status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN', 'ARCHIVED']).default('DRAFT')
@@ -141,12 +150,13 @@ export const getLabWorks = asyncHandler(async (req: Request, res: Response) => {
 
 // Get single lab work
 export const getLabWork = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params
+  const labWorkId = await resolveLabWorkId(req.params.id)
+  if (!labWorkId) throw new AppError(404, 'Lab work not found')
   const userRole = req.user?.role
   const userId = req.user?.userId
 
   const labWork = await prisma.labWork.findUnique({
-    where: { id },
+    where: { id: labWorkId },
     include: {
       discipline: {
         select: {
@@ -267,10 +277,17 @@ export const createLabWork = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError(400, 'Lab work with this number already exists in this discipline')
   }
 
+  if (validatedData.status === 'PUBLISHED') {
+    throw new AppError(400, 'Publish the lab work after attaching the assignment file')
+  }
+  if (validatedData.dueDate && new Date(validatedData.dueDate) <= new Date()) {
+    throw new AppError(400, 'Due date must be in the future')
+  }
+
   const labWork = await prisma.labWork.create({
     data: {
       ...validatedData,
-      publishedAt: validatedData.status === 'PUBLISHED' ? new Date() : null
+      publishedAt: null
     },
     include: {
       discipline: {
@@ -280,6 +297,22 @@ export const createLabWork = asyncHandler(async (req: Request, res: Response) =>
         }
       }
     }
+  })
+
+  await prisma.criterion.createMany({
+    data: [
+      { labWorkId: labWork.id, name: 'Корректность решения', description: 'Работа выполняет поставленную задачу.', maxScore: 30, order: 1 },
+      { labWorkId: labWork.id, name: 'Полнота отчёта', description: 'Присутствуют все обязательные разделы и результаты.', maxScore: 30, order: 2 },
+      { labWorkId: labWork.id, name: 'Оформление', description: 'Отчёт оформлен аккуратно и последовательно.', maxScore: 20, order: 3 },
+      { labWorkId: labWork.id, name: 'Защита работы', description: 'Студент может объяснить решение и ответить на вопросы.', maxScore: 20, order: 4 }
+    ]
+  })
+  await recordAudit({
+    userId: userId!,
+    action: 'CREATE_LAB_WORK',
+    entity: 'LabWork',
+    entityId: labWork.id,
+    details: { disciplineId: labWork.discipline.id, number: labWork.number }
   })
 
   res.status(201).json({
@@ -303,7 +336,8 @@ export const updateLabWork = asyncHandler(async (req: Request, res: Response) =>
         include: {
           teachers: true
         }
-      }
+      },
+      files: true
     }
   })
 
@@ -323,6 +357,20 @@ export const updateLabWork = asyncHandler(async (req: Request, res: Response) =>
     if (!hasAccess) {
       throw new AppError(403, 'Access denied')
     }
+
+  }
+
+  const targetStatus = validatedData.status ?? labWork.status
+  const targetDueDate = validatedData.dueDate === undefined
+    ? labWork.dueDate
+    : validatedData.dueDate
+      ? new Date(validatedData.dueDate)
+      : null
+  if (targetStatus === 'PUBLISHED' && labWork.files.length === 0) {
+    throw new AppError(400, 'Attach an assignment file before publishing')
+  }
+  if (targetDueDate && targetDueDate <= new Date()) {
+    throw new AppError(400, 'Due date must be in the future')
   }
 
   // Обновление publishedAt при публикации
@@ -343,6 +391,13 @@ export const updateLabWork = asyncHandler(async (req: Request, res: Response) =>
       },
       criteria: true
     }
+  })
+  await recordAudit({
+    userId: userId!,
+    action: 'UPDATE_LAB_WORK',
+    entity: 'LabWork',
+    entityId: updated.id,
+    details: { status: updated.status }
   })
 
   res.json({
@@ -399,6 +454,12 @@ export const deleteLabWork = asyncHandler(async (req: Request, res: Response) =>
 
   await prisma.labWork.delete({
     where: { id }
+  })
+  await recordAudit({
+    userId: userId!,
+    action: 'DELETE_LAB_WORK',
+    entity: 'LabWork',
+    entityId: id
   })
 
   res.json({

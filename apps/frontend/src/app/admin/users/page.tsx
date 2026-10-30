@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select } from '@/components/ui/select'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN'
 type UserStatus = 'ACTIVE' | 'BLOCKED' | 'INACTIVE'
@@ -68,9 +69,12 @@ export default function UsersPage() {
     search: ''
   })
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [editUser, setEditUser] = useState<User | null>(null)
+  const [editData, setEditData] = useState({ firstName: '', lastName: '', email: '', phone: '' })
   const [creating, setCreating] = useState(false)
   const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([])
   const [createError, setCreateError] = useState<string | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ type: 'block' | 'delete'; userId: string } | null>(null)
   const [formData, setFormData] = useState<CreateUserForm>({
     email: '',
     password: '',
@@ -193,8 +197,6 @@ export default function UsersPage() {
   }
 
   const handleBlockUser = async (userId: string) => {
-    if (!confirm('Вы уверены, что хотите заблокировать этого пользователя?')) return
-
     try {
       await apiClient.delete(`/users/${userId}`)
       fetchUsers()
@@ -204,19 +206,28 @@ export default function UsersPage() {
   }
 
   const handleEditUser = async (user: User) => {
-    const firstName = window.prompt('Имя', user.firstName)
-    if (firstName === null) return
-    const lastName = window.prompt('Фамилия', user.lastName)
-    if (lastName === null) return
+    setEditUser(user)
+    setEditData({ firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone || '' })
+  }
 
+  const saveEditedUser = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!editUser) return
     try {
-      await apiClient.put(`/users/${user.id}`, {
-        firstName: firstName.trim(),
-        lastName: lastName.trim()
-      })
+      await apiClient.put(`/users/${editUser.id}`, editData)
+      setEditUser(null)
       await fetchUsers()
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Ошибка редактирования пользователя')
+      setError(err.response?.data?.error || 'Ошибка редактирования пользователя')
+    }
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await apiClient.delete(`/users/${userId}?permanent=true`)
+      await fetchUsers()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Ошибка удаления пользователя')
     }
   }
 
@@ -331,26 +342,26 @@ export default function UsersPage() {
         </Card>
 
         <Card className="overflow-hidden animate-fade-in stagger-2">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-[hsl(var(--border-light))]">
+          <div className="custom-scrollbar overflow-x-auto overscroll-x-contain">
+            <table className="min-w-[1040px] table-fixed divide-y divide-[hsl(var(--border-light))]">
               <thead className="bg-lavender-50/50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  <th className="w-[22%] px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                     Пользователь
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  <th className="w-[13%] px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                     Роль
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                     Доп. информация
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                     Статус
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  <th className="w-[13%] px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
                     Действия
                   </th>
                 </tr>
@@ -390,8 +401,8 @@ export default function UsersPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(user.status)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -403,7 +414,7 @@ export default function UsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleBlockUser(user.id)}
+                            onClick={() => setConfirmAction({ type: 'block', userId: user.id })}
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
                             Заблокировать
@@ -419,6 +430,9 @@ export default function UsersPage() {
                             Разблокировать
                           </Button>
                         )}
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmAction({ type: 'delete', userId: user.id })} className="text-red-700 hover:bg-red-100 hover:text-red-800">
+                          Удалить
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -443,11 +457,26 @@ export default function UsersPage() {
         </Card>
       </div>
 
+      <ConfirmDialog
+        open={Boolean(confirmAction)}
+        title={confirmAction?.type === 'delete' ? 'Удалить пользователя?' : 'Заблокировать пользователя?'}
+        message={confirmAction?.type === 'delete' ? 'Удаление будет постоянным и восстановить пользователя будет невозможно.' : 'Пользователь потеряет доступ к системе до разблокировки.'}
+        confirmLabel={confirmAction?.type === 'delete' ? 'Удалить навсегда' : 'Заблокировать'}
+        danger
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => {
+          if (!confirmAction) return
+          if (confirmAction.type === 'delete') void handleDeleteUser(confirmAction.userId)
+          else void handleBlockUser(confirmAction.userId)
+          setConfirmAction(null)
+        }}
+      />
+
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={(event) => {
           if (event.target === event.currentTarget && !creating) setShowCreateModal(false)
         }}>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+          <div className="custom-scrollbar max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-bold text-slate-950">Создать пользователя</h2>
@@ -482,6 +511,23 @@ export default function UsersPage() {
                   <Select required value={String(formData.course)} onChange={value => setFormData({ ...formData, course: Number(value) })} options={[1, 2, 3, 4, 5, 6].map(course => ({ value: String(course), label: `${course} курс` }))} />
                   <Input required placeholder="Направление подготовки *" value={formData.program} onChange={(event) => setFormData({ ...formData, program: event.target.value })} />
                   <Input required placeholder="Факультет *" value={formData.faculty} onChange={(event) => setFormData({ ...formData, faculty: event.target.value })} />
+                </div>
+              )}
+              {editUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={event => event.target === event.currentTarget && setEditUser(null)}>
+                  <form onSubmit={saveEditedUser} className="dashboard-card w-full max-w-lg bg-white/95 p-6 animate-fade-in-scale">
+                    <h2 className="mb-5 text-2xl font-bold text-slate-950">Редактировать пользователя</h2>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Input required placeholder="Имя" value={editData.firstName} onChange={event => setEditData({ ...editData, firstName: event.target.value })} />
+                      <Input required placeholder="Фамилия" value={editData.lastName} onChange={event => setEditData({ ...editData, lastName: event.target.value })} />
+                      <Input required type="email" placeholder="Email" value={editData.email} onChange={event => setEditData({ ...editData, email: event.target.value })} />
+                      <Input placeholder="Телефон" value={editData.phone} onChange={event => setEditData({ ...editData, phone: event.target.value })} />
+                    </div>
+                    <div className="mt-6 flex gap-3">
+                      <Button type="button" variant="outline" className="flex-1" onClick={() => setEditUser(null)}>Отмена</Button>
+                      <Button type="submit" className="flex-1">Сохранить</Button>
+                    </div>
+                  </form>
                 </div>
               )}
 

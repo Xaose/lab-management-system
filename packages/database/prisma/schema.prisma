@@ -121,6 +121,8 @@ model Group {
   course      Int
   program     String   // Направление подготовки
   faculty     String   // Факультет
+  facultyId   String?  @map("faculty_id")
+  facultyRef  Faculty? @relation(fields: [facultyId], references: [id], onDelete: SetNull)
   year        Int      // Учебный год начала обучения
 
   createdAt   DateTime @default(now()) @map("created_at")
@@ -130,6 +132,15 @@ model Group {
   disciplines DisciplineGroup[]
 
   @@map("groups")
+}
+
+model Faculty {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  groups    Group[]
+
+  @@map("faculties")
 }
 
 // ============================================

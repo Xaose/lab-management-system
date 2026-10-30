@@ -95,7 +95,6 @@ export default function Navbar() {
           { href: '/teacher/dashboard', label: 'Главная', icon: HomeIcon },
           { href: '/teacher/disciplines', label: 'Дисциплины', icon: BookIcon },
           { href: '/teacher/groups', label: 'Группы', icon: GroupIcon },
-          { href: '/teacher/disciplines', label: 'Лабораторные', icon: DocumentIcon },
           { href: '/teacher/submissions', label: 'Проверка работ', icon: CheckIcon },
           { href: '/notifications', label: 'Уведомления', icon: CheckIcon },
         ]
@@ -167,7 +166,7 @@ export default function Navbar() {
       </nav>
 
       <div className={`mt-auto w-full space-y-3 ${collapsed ? 'lg:flex lg:flex-col lg:items-center' : ''}`}>
-        <Link href="/profile" title="Профиль" className={`flex items-center gap-3 rounded-xl border border-white/35 bg-white/35 p-3 text-sm transition hover:bg-white/60 ${collapsed ? 'lg:h-12 lg:w-12 lg:justify-center lg:p-0' : ''}`}>
+        <Link href="/profile" title="Профиль" className={`flex items-center gap-3 p-1 text-sm transition hover:text-[hsl(var(--primary-dark))] ${collapsed ? 'lg:h-12 lg:w-12 lg:justify-center lg:p-0 lg:hover:scale-105' : ''}`}>
           <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-lavender-300 to-lavender-200 text-sm font-bold text-lavender-900">
             {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : `${user.firstName[0]}${user.lastName[0]}`}
           </div>
@@ -181,7 +180,7 @@ export default function Navbar() {
           size="icon"
           title="Выйти"
           onClick={handleLogout}
-          className={`mx-auto text-slate-600 hover:bg-red-100/60 hover:text-red-700 lg:mx-0 lg:gap-3 ${collapsed ? 'lg:h-12 lg:w-12 lg:justify-center' : 'lg:w-full lg:justify-start'}`}
+          className={`mx-auto p-3 text-slate-600 hover:bg-red-100/60 hover:text-red-700 lg:mx-0 lg:gap-3 ${collapsed ? 'lg:h-12 lg:w-12 lg:justify-center' : 'lg:w-full lg:justify-start'}`}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

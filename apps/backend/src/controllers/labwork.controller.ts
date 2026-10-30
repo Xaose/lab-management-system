@@ -117,7 +117,14 @@ export const getLabWorks = asyncHandler(async (req: Request, res: Response) => {
     }
 
     const disciplineIds = student.group.disciplines.map(d => d.disciplineId)
-    where.disciplineId = { in: disciplineIds }
+    if (disciplineId) {
+      if (!disciplineIds.includes(disciplineId as string)) {
+        throw new AppError(403, 'Access denied')
+      }
+      where.disciplineId = disciplineId as string
+    } else {
+      where.disciplineId = { in: disciplineIds }
+    }
   }
 
   const labWorks = await prisma.labWork.findMany({

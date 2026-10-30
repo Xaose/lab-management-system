@@ -19,6 +19,7 @@ const createDisciplineSchema = z.object({
   semester: z.number().int().min(1),
   year: z.number().int(),
   hours: z.number().int().min(1),
+  teacherId: z.string().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional()
 })
 
@@ -310,16 +311,20 @@ export const createDiscipline = asyncHandler(async (req: Request, res: Response)
   let createdById: string
 
   if (user.role === 'ADMIN') {
-    // Админ должен указать преподавателя-создателя или стать им
-    // Для упрощения, админ не может создавать дисциплины напрямую
-    throw new AppError(400, 'Admin must assign a teacher to create discipline')
+    if (!validatedData.teacherId) {
+      throw new AppError(400, 'Admin must assign a teacher to create discipline')
+    }
+    const teacher = await prisma.teacher.findUnique({ where: { id: validatedData.teacherId } })
+    if (!teacher) throw new AppError(404, 'Teacher not found')
+    createdById = teacher.id
   } else {
     createdById = user.teacher!.id
   }
 
+  const { teacherId: _teacherId, ...disciplineData } = validatedData
   const discipline = await prisma.discipline.create({
     data: {
-      ...validatedData,
+      ...disciplineData,
       createdById
     },
     include: {

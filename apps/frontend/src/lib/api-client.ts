@@ -30,7 +30,11 @@ class ApiClient {
         if (error.response?.status === 401) {
           this.clearToken()
           if (typeof window !== 'undefined') {
-            window.location.href = '/auth/login'
+            const requestUrl = error.config?.url || ''
+            if (!requestUrl.includes('/auth/login')) {
+              const redirect = `${window.location.pathname}${window.location.search}`
+              window.location.href = `/auth/login?redirect=${encodeURIComponent(redirect)}`
+            }
           }
         }
         return Promise.reject(error)
@@ -46,7 +50,7 @@ class ApiClient {
       const storage = localStorage.getItem('auth-storage')
       if (storage) {
         const { state } = JSON.parse(storage)
-        return state?.token || null
+        return state?.token || localStorage.getItem('auth_token')
       }
     } catch (e) {
       // Fallback to old method
@@ -66,6 +70,8 @@ class ApiClient {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth-storage')
+      document.cookie = 'auth-token=; path=/; max-age=0'
+      document.cookie = 'auth-user=; path=/; max-age=0'
     }
   }
 

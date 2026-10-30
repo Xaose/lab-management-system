@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
 import { slugify } from '@/lib/slug'
 import { Select } from '@/components/ui/select'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface Group {
   id: string
@@ -24,16 +25,22 @@ export default function GroupsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [faculties, setFaculties] = useState<Array<{ id: string; name: string }>>([])
+  const [showFacultyModal, setShowFacultyModal] = useState(false)
+  const [facultyName, setFacultyName] = useState('')
+  const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     course: 1,
     program: '',
     faculty: '',
+    facultyId: '',
     year: new Date().getFullYear()
   })
 
   useEffect(() => {
     fetchGroups()
+    apiClient.get('/faculties').then(response => setFaculties(response.data?.faculties || []))
   }, [])
 
   const fetchGroups = async () => {
@@ -52,24 +59,37 @@ export default function GroupsPage() {
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await apiClient.post('/groups', formData)
+      const selectedFaculty = faculties.find(faculty => faculty.id === formData.facultyId)
+      await apiClient.post('/groups', { ...formData, faculty: selectedFaculty?.name || formData.faculty })
       setShowCreateModal(false)
       setFormData({
         name: '',
         course: 1,
         program: '',
         faculty: '',
+        facultyId: '',
         year: new Date().getFullYear()
       })
       fetchGroups()
     } catch (err: any) {
       alert(err.response?.data?.error || 'Ошибка создания группы')
     }
+
+  }
+
+  const handleCreateFaculty = async (event: React.FormEvent) => {
+    event.preventDefault()
+    try {
+      const response = await apiClient.post('/faculties', { name: facultyName })
+      setFaculties(current => [...current, response.data.faculty].sort((a, b) => a.name.localeCompare(b.name)))
+      setFacultyName('')
+      setShowFacultyModal(false)
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Ошибка создания факультета')
+    }
   }
 
   const handleDeleteGroup = async (groupId: string) => {
-    if (!confirm('Вы уверены, что хотите удалить эту группу? В ней не должно быть студентов.')) return
-
     try {
       await apiClient.delete(`/groups/${groupId}`)
       fetchGroups()
@@ -104,11 +124,23 @@ export default function GroupsPage() {
             {error}
           </div>
         )}
+        {showFacultyModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={event => event.target === event.currentTarget && setShowFacultyModal(false)}>
+            <form onSubmit={handleCreateFaculty} className="dashboard-card w-full max-w-md bg-white/95 p-6">
+              <h2 className="mb-4 text-xl font-bold text-slate-950">Новый факультет</h2>
+              <input required value={facultyName} onChange={event => setFacultyName(event.target.value)} placeholder="Название факультета" className="w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3" />
+              <div className="mt-5 flex gap-3">
+                <button type="button" onClick={() => setShowFacultyModal(false)} className="flex-1 rounded-xl border border-white/70 px-4 py-2.5 text-slate-700 hover:bg-white">Отмена</button>
+                <button type="submit" className="flex-1 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 font-semibold text-white hover:bg-[hsl(var(--primary-dark))]">Создать</button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Сетка групп */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {groups.map((group) => (
-            <div key={group.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+            <div key={group.id} className="dashboard-card-hover p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">{group.name}</h3>
@@ -144,7 +176,7 @@ export default function GroupsPage() {
                     Подробнее
                   </Link>
                   <button
-                    onClick={() => handleDeleteGroup(group.id)}
+                    onClick={() => setDeleteGroupId(group.id)}
                     className="text-red-600 hover:text-red-900 text-sm font-medium"
                   >
                     Удалить
@@ -156,7 +188,7 @@ export default function GroupsPage() {
         </div>
 
         {groups.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
+          <div className="dashboard-card p-12 text-center">
             <p className="text-gray-500">Группы не найдены</p>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -167,6 +199,19 @@ export default function GroupsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteGroupId)}
+        title="Удалить группу?"
+        message="Группа будет удалена. Убедитесь, что в ней нет студентов."
+        confirmLabel="Удалить"
+        danger
+        onCancel={() => setDeleteGroupId(null)}
+        onConfirm={() => {
+          if (deleteGroupId) void handleDeleteGroup(deleteGroupId)
+          setDeleteGroupId(null)
+        }}
+      />
 
       {/* Модальное окно создания группы */}
       {showCreateModal && (
@@ -214,14 +259,10 @@ export default function GroupsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Факультет *
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.faculty}
-                  onChange={(e) => setFormData({ ...formData, faculty: e.target.value })}
-                  placeholder="Факультет информационных технологий"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
+                <div className="flex gap-2">
+                  <Select required value={formData.facultyId} onChange={value => setFormData({ ...formData, facultyId: value })} placeholder="Выберите факультет" className="flex-1" options={faculties.map(faculty => ({ value: faculty.id, label: faculty.name }))} />
+                  <button type="button" onClick={() => setShowFacultyModal(true)} className="rounded-xl border border-lavender-300 px-3 text-sm font-semibold text-lavender-800 transition hover:bg-lavender-100">+</button>
+                </div>
               </div>
 
               <div>

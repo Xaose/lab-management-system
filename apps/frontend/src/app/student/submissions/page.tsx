@@ -73,29 +73,30 @@ export default function StudentSubmissionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="dashboard-page flex min-h-screen items-center justify-center">
         <div className="text-gray-600">Загрузка...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Мои работы</h1>
-          <p className="text-gray-600">История сдач и оценок</p>
+    <div className="dashboard-page min-h-screen">
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
+        <div className="mb-8 animate-fade-in">
+          <span className="mb-3 inline-flex rounded-full bg-white/60 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-lavender-800">Учебный прогресс</span>
+          <h1 className="mb-2 text-3xl font-bold text-slate-950">Мои работы</h1>
+          <p className="text-slate-600">История сдач и оценок</p>
         </div>
 
         {submissions.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+          <div className="dashboard-card p-12 text-center animate-fade-in-scale">
             <p className="text-gray-500">Нет сданных работ</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="dashboard-card overflow-hidden animate-fade-in-scale">
+            <div className="custom-scrollbar overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead>
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Дисциплина</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Работа</th>
@@ -107,7 +108,7 @@ export default function StudentSubmissionsPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {submissions.map((submission) => (
-                    <tr key={submission.id} className="hover:bg-gray-50">
+                    <tr key={submission.id} className="hover:bg-white/40">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {submission.labWork.discipline.name}
                       </td>

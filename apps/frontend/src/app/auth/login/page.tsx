@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/store/auth.store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import AuthScene from '@/components/AuthScene'
+import type { Route } from 'next'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -14,6 +15,19 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const errorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const resetAfterRestore = () => {
+      if (!useAuthStore.getState().token) {
+        setFormData({ email: '', password: '' })
+        setError('')
+      }
+    }
+    window.addEventListener('pageshow', resetAfterRestore)
+    resetAfterRestore()
+    return () => window.removeEventListener('pageshow', resetAfterRestore)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,10 +40,14 @@ export default function LoginPage() {
         setToken(response.data.token)
         setUser(response.data.user)
         const role = response.data.user.role
-        router.push(role === 'STUDENT' ? '/student/dashboard' : role === 'TEACHER' ? '/teacher/dashboard' : '/admin/dashboard')
+        const redirect = new URLSearchParams(window.location.search).get('redirect')
+        const roleHome = role === 'STUDENT' ? '/student/dashboard' : role === 'TEACHER' ? '/teacher/dashboard' : '/admin/dashboard'
+        const destination = redirect?.startsWith('/') && !redirect.startsWith('//') ? redirect : roleHome
+        router.push(destination as Route)
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Ошибка входа. Проверьте данные.')
+      window.setTimeout(() => errorRef.current?.focus(), 0)
     } finally {
       setIsLoading(false)
     }
@@ -37,11 +55,11 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7f5ff] px-4 py-10">
+      <AuthScene />
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-lavender-300/40 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-40 -right-20 h-[28rem] w-[28rem] rounded-full bg-purple-200/50 blur-3xl" />
-      <div className="relative grid w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/80 bg-white/70 shadow-[0_30px_90px_rgba(74,54,145,0.18)] backdrop-blur-2xl md:grid-cols-[1.05fr_0.95fr] animate-fade-in-scale">
+      <div className="relative z-10 grid w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/80 bg-white/70 shadow-[0_30px_90px_rgba(74,54,145,0.18)] backdrop-blur-2xl md:grid-cols-[1.05fr_0.95fr] animate-fade-in-scale">
         <div className="relative hidden min-h-[620px] overflow-hidden bg-[#21134f] p-12 text-white md:flex md:flex-col md:justify-between">
-          <AuthScene />
           <div className="relative z-10">
             <div className="mb-20 flex items-center gap-3 animate-slide-in">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-lg font-bold text-lavender-700 shadow-soft-lg">L</div>
@@ -95,7 +113,7 @@ export default function LoginPage() {
               />
             </div>
             {error && (
-              <div className="rounded-xl border border-red-200/60 bg-red-50 px-4 py-3.5 text-sm text-red-700 shadow-soft animate-fade-in">
+              <div ref={errorRef} tabIndex={-1} role="alert" className="rounded-xl border border-red-200/60 bg-red-50 px-4 py-3.5 text-sm text-red-700 shadow-soft animate-fade-in">
                 {error}
               </div>
             )}

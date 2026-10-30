@@ -13,6 +13,7 @@ import fileRoutes from './routes/file.routes'
 import notificationRoutes from './routes/notification.routes'
 import analyticsRoutes from './routes/analytics.routes'
 import auditRoutes from './routes/audit.routes'
+import facultyRoutes from './routes/faculty.routes'
 import { errorHandler } from './middleware/error.middleware'
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
@@ -45,6 +46,7 @@ app.use('/api/files', fileRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/analytics', analyticsRoutes)
 app.use('/api/audit', auditRoutes)
+app.use('/api/faculties', facultyRoutes)
 
 // 404 handler
 app.use((req: Request, res: Response) => {

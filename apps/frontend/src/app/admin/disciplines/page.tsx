@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
 import { slugify } from '@/lib/slug'
 import { Select } from '@/components/ui/select'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 type DisciplineStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
 
@@ -40,6 +41,10 @@ export default function DisciplinesPage() {
     semester: '',
     search: ''
   })
+  const [deleteDisciplineId, setDeleteDisciplineId] = useState<string | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [teachers, setTeachers] = useState<Array<{ id: string; firstName: string; lastName: string }>>([])
+  const [createData, setCreateData] = useState({ name: '', description: '', semester: 1, year: new Date().getFullYear(), hours: 36, teacherId: '' })
 
   const fetchDisciplines = useCallback(async () => {
     try {
@@ -64,9 +69,25 @@ export default function DisciplinesPage() {
     fetchDisciplines()
   }, [fetchDisciplines])
 
-  const handleDeleteDiscipline = async (disciplineId: string) => {
-    if (!confirm('Вы уверены, что хотите удалить эту дисциплину? В ней не должно быть лабораторных работ.')) return
+  useEffect(() => {
+    apiClient.get('/users?role=TEACHER').then(response => {
+      setTeachers((response.data?.users || []).map((user: any) => ({ id: user.teacher?.id, firstName: user.firstName, lastName: user.lastName })).filter((teacher: { id?: string }): teacher is { id: string; firstName: string; lastName: string } => Boolean(teacher.id)))
+    })
+  }, [])
 
+  const handleCreateDiscipline = async (event: React.FormEvent) => {
+    event.preventDefault()
+    try {
+      await apiClient.post('/disciplines', createData)
+      setShowCreateModal(false)
+      setCreateData({ name: '', description: '', semester: 1, year: new Date().getFullYear(), hours: 36, teacherId: '' })
+      await fetchDisciplines()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Ошибка создания дисциплины')
+    }
+  }
+
+  const handleDeleteDiscipline = async (disciplineId: string) => {
     try {
       await apiClient.delete(`/disciplines/${disciplineId}`)
       fetchDisciplines()
@@ -106,12 +127,9 @@ export default function DisciplinesPage() {
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Управление дисциплинами</h1>
-          <Link
-            href="/teacher/disciplines"
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
-          >
+          <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
             + Создать дисциплину
-          </Link>
+          </button>
         </div>
 
         {error && (
@@ -121,7 +139,7 @@ export default function DisciplinesPage() {
         )}
 
         {/* Фильтры */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="dashboard-card mb-6 p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -171,7 +189,7 @@ export default function DisciplinesPage() {
         {/* Список дисциплин */}
         <div className="space-y-4">
           {disciplines.map((discipline) => (
-            <div key={discipline.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+            <div key={discipline.id} className="dashboard-card-hover p-6">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -217,19 +235,50 @@ export default function DisciplinesPage() {
                     Подробнее
                   </Link>
                   <button
-                    onClick={() => handleDeleteDiscipline(discipline.id)}
+                    onClick={() => setDeleteDisciplineId(discipline.id)}
                     className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                   >
                     Удалить
                   </button>
                 </div>
+                <ConfirmDialog
+                  open={Boolean(deleteDisciplineId)}
+                  title="Удалить дисциплину?"
+                  message="Дисциплина будет удалена. Убедитесь, что в ней нет лабораторных работ."
+                  confirmLabel="Удалить"
+                  danger
+                  onCancel={() => setDeleteDisciplineId(null)}
+                  onConfirm={() => {
+                    if (deleteDisciplineId) void handleDeleteDiscipline(deleteDisciplineId)
+                    setDeleteDisciplineId(null)
+                  }}
+                />
+                {showCreateModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+                    <form onSubmit={handleCreateDiscipline} className="dashboard-card w-full max-w-xl bg-white/95 p-6">
+                      <h2 className="text-2xl font-bold text-slate-950">Создать дисциплину</h2>
+                      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                        <input required placeholder="Название" value={createData.name} onChange={event => setCreateData({ ...createData, name: event.target.value })} className="rounded-xl border border-slate-200 px-4 py-3 sm:col-span-2" />
+                        <textarea placeholder="Описание" value={createData.description} onChange={event => setCreateData({ ...createData, description: event.target.value })} className="rounded-xl border border-slate-200 px-4 py-3 sm:col-span-2" />
+                        <input required type="number" min="1" placeholder="Семестр" value={createData.semester} onChange={event => setCreateData({ ...createData, semester: Number(event.target.value) })} className="rounded-xl border border-slate-200 px-4 py-3" />
+                        <input required type="number" min="2000" placeholder="Год" value={createData.year} onChange={event => setCreateData({ ...createData, year: Number(event.target.value) })} className="rounded-xl border border-slate-200 px-4 py-3" />
+                        <input required type="number" min="1" placeholder="Часы" value={createData.hours} onChange={event => setCreateData({ ...createData, hours: Number(event.target.value) })} className="rounded-xl border border-slate-200 px-4 py-3" />
+                        <Select required value={createData.teacherId} onChange={value => setCreateData({ ...createData, teacherId: value })} placeholder="Ответственный преподаватель" options={teachers.map(teacher => ({ value: teacher.id, label: `${teacher.lastName} ${teacher.firstName}` }))} />
+                      </div>
+                      <div className="mt-6 flex gap-3">
+                        <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 font-semibold text-slate-700">Отмена</button>
+                        <button type="submit" className="flex-1 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 font-semibold text-white">Создать</button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
 
         {disciplines.length === 0 && !loading && (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
+          <div className="dashboard-card p-12 text-center">
             <p className="text-gray-500">Дисциплины не найдены</p>
           </div>
         )}

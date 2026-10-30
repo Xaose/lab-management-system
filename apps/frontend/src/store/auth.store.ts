@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       token: null,
-      isLoading: false,
+      isLoading: true,
       setUser: (user) => {
         set({ user })
         syncWithCookies(useAuthStore.getState().token, user)
@@ -63,6 +63,7 @@ export const useAuthStore = create<AuthState>()(
         if (state) {
           syncWithCookies(state.token, state.user)
         }
+        useAuthStore.setState({ isLoading: false })
       },
     }
   )

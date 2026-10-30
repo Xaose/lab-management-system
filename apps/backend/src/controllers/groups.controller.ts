@@ -18,6 +18,7 @@ const createGroupSchema = z.object({
   course: z.number().int().min(1).max(6),
   program: z.string().min(1),
   faculty: z.string().min(1),
+  facultyId: z.string().optional(),
   year: z.number().int()
 })
 

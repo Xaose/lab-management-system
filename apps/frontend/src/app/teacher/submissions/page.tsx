@@ -146,7 +146,7 @@ export default function TeacherSubmissionsPage() {
           </Card>
         ) : (
           <Card className="overflow-hidden p-0">
-            <div className="hidden overflow-x-auto md:block">
+            <div className="custom-scrollbar hidden overflow-x-auto md:block">
               <table className="min-w-full">
                 <thead className="bg-white/60 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <tr>{['Студент', 'Работа', 'Статус', 'Оценка', 'Сдано', ''].map((heading, index) => <th key={index} className="px-5 py-4">{heading}</th>)}</tr>

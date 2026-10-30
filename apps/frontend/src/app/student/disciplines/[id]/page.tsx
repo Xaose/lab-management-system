@@ -59,7 +59,7 @@ export default function StudentDisciplinePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="dashboard-page flex min-h-screen items-center justify-center">
         <div className="text-gray-600">Загрузка...</div>
       </div>
     )
@@ -67,7 +67,7 @@ export default function StudentDisciplinePage() {
 
   if (!discipline) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="dashboard-page flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">Дисциплина не найдена</p>
           <button
@@ -82,26 +82,26 @@ export default function StudentDisciplinePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
+    <div className="dashboard-page min-h-screen">
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
+        <div className="mb-8 animate-fade-in">
           <Link
             href="/student/disciplines"
-            className="inline-flex items-center text-primary-600 hover:text-primary-700 mb-4"
+            className="mb-4 inline-flex items-center text-lavender-700 transition hover:text-lavender-900"
           >
             <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Назад к дисциплинам
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{discipline.name}</h1>
+          <h1 className="text-3xl font-bold text-slate-950 mb-2">{discipline.name}</h1>
           {discipline.description && (
             <p className="text-gray-600">{discipline.description}</p>
           )}
         </div>
 
         {labWorks.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+          <div className="dashboard-card p-12 text-center animate-fade-in-scale">
             <p className="text-gray-500">Нет доступных лабораторных работ</p>
           </div>
         ) : (
@@ -110,7 +110,7 @@ export default function StudentDisciplinePage() {
               <Link
                 key={labWork.id}
                 href={`/student/lab-works/${labWorkSlug(labWork.number, labWork.title)}`}
-                className="block bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 border border-gray-100"
+                className="dashboard-card-hover block p-6 animate-fade-in-scale"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

@@ -38,9 +38,9 @@ export function Select({ value, options, onChange, placeholder = 'Выберит
         <svg className={`h-4 w-4 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.51a.75.75 0 01-1.08 0l-4.25-4.51a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
       </button>
       {open && (
-        <div className="absolute z-50 mt-2 max-h-60 w-full overflow-auto rounded-xl border border-white/70 bg-white/95 p-1.5 shadow-soft-lg backdrop-blur-xl animate-fade-in-scale">
+        <div className="custom-scrollbar absolute z-50 mt-2 max-h-60 w-full overflow-auto rounded-xl border border-white/70 bg-white/95 p-1.5 shadow-soft-lg backdrop-blur-xl animate-fade-in-scale">
           {options.map(option => (
-            <button type="button" key={option.value} onClick={() => { onChange(option.value); setOpen(false) }} className={`flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-lavender-100 ${option.value === value ? 'bg-lavender-100 font-semibold text-lavender-900' : 'text-slate-700'}`}>
+            <button type="button" key={option.value} onClick={() => { onChange(option.value); setOpen(false) }} className={`mb-1.5 flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm transition last:mb-0 hover:bg-lavender-100 ${option.value === value ? 'bg-lavender-100 font-semibold text-lavender-900' : 'text-slate-700'}`}>
               {option.label}
             </button>
           ))}

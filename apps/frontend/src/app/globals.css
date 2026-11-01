@@ -62,6 +62,114 @@
     --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
 
+  html.dark {
+    --background: 250 24% 12%;
+    --background-secondary: 251 22% 16%;
+    --foreground: 250 30% 94%;
+    --foreground-secondary: 250 12% 72%;
+    --card: 250 22% 18%;
+    --card-blur: 250 22% 20%;
+    --card-foreground: 250 30% 94%;
+    --muted: 250 18% 24%;
+    --muted-foreground: 250 12% 72%;
+    --border: 250 18% 32%;
+    --border-light: 250 16% 26%;
+  }
+
+  html.dark body {
+    background: hsl(var(--background));
+  }
+
+  html.dark .dashboard-page {
+    background: linear-gradient(135deg, hsl(250 24% 12%) 0%, hsl(252 24% 16%) 50%, hsl(258 22% 13%) 100%);
+  }
+
+  html.dark .dashboard-card,
+  html.dark .dashboard-page .bg-white:not(input):not(textarea),
+  html.dark .dashboard-page input:not([type='checkbox']):not([type='radio']),
+  html.dark .dashboard-page select,
+  html.dark .dashboard-page textarea {
+    background-color: hsl(250 22% 19% / 0.9);
+    border-color: hsl(250 18% 32%);
+    color: hsl(var(--foreground));
+  }
+
+  html.dark .text-slate-950,
+  html.dark .text-slate-900,
+  html.dark .text-slate-800,
+  html.dark .text-slate-700 {
+    color: hsl(var(--foreground));
+  }
+
+  html.dark .text-slate-600,
+  html.dark .text-slate-500,
+  html.dark .text-slate-400 {
+    color: hsl(var(--foreground-secondary));
+  }
+
+  html.dark [class*="text-gray-"],
+  html.dark [class*="text-zinc-"],
+  html.dark [class*="text-neutral-"] {
+    color: hsl(var(--foreground-secondary));
+  }
+
+  html.dark .text-slate-300,
+  html.dark .text-gray-300,
+  html.dark .text-zinc-300,
+  html.dark .text-neutral-300 {
+    color: hsl(250 18% 82%);
+  }
+
+  html.dark .text-slate-200,
+  html.dark .text-gray-200,
+  html.dark .text-zinc-200,
+  html.dark .text-neutral-200 {
+    color: hsl(250 24% 90%);
+  }
+
+  html.dark .placeholder\:text-slate-400::placeholder,
+  html.dark input::placeholder,
+  html.dark textarea::placeholder {
+    color: hsl(250 12% 65%);
+  }
+
+  html.dark .bg-slate-50,
+  html.dark .bg-lavender-50\/50 {
+    background-color: hsl(250 20% 22% / 0.75);
+  }
+
+  html.dark aside {
+    background: linear-gradient(180deg, hsl(263 42% 23%) 0%, hsl(258 36% 18%) 100%) !important;
+    border-color: hsl(250 18% 32%);
+  }
+
+  html.dark .bg-white,
+  html.dark .bg-white\/95 {
+    background-color: hsl(250 22% 19% / 0.98);
+    color: hsl(var(--foreground));
+  }
+
+  html.dark .bg-white\/70,
+  html.dark .bg-white\/65,
+  html.dark .bg-white\/60,
+  html.dark .bg-white\/55,
+  html.dark .bg-white\/40,
+  html.dark .bg-white\/15 {
+    background-color: hsl(250 22% 19% / 0.92);
+    color: hsl(var(--foreground));
+  }
+
+  html.dark .border-white\/80,
+  html.dark .border-white\/70,
+  html.dark .border-white\/55,
+  html.dark .border-white\/30 {
+    border-color: hsl(250 18% 36%);
+  }
+
+  html.dark .text-white {
+    color: hsl(var(--foreground));
+  }
+
   * {
     @apply border-[hsl(var(--border))];
   }
@@ -239,9 +347,31 @@
   }
 
   @media (max-width: 640px) {
+    body {
+      overflow-x: hidden;
+    }
+
     .dashboard-page > div {
+      width: 100%;
+      max-width: 100%;
+      padding-left: 1rem;
+      padding-right: 1rem;
       padding-top: 1.75rem;
       padding-bottom: 2.5rem;
+    }
+
+    .dashboard-page table {
+      min-width: 640px;
+    }
+
+    .dashboard-page .overflow-x-auto {
+      max-width: 100%;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .dashboard-hero {
+      border-radius: 1rem;
+      padding: 1rem;
     }
   }
 

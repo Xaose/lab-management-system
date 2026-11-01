@@ -5,8 +5,11 @@ import Link from 'next/link'
 import { Card, CardHover } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { apiClient } from '@/lib/api-client'
+import { useAuthStore } from '@/store/auth.store'
+import { translate } from '@/lib/i18n'
 
 export default function AdminDashboard() {
+  const language = useAuthStore(state => state.user?.language)
   const [dashboardStats, setDashboardStats] = useState({
     users: null as number | null,
     groups: null as number | null,
@@ -82,7 +85,7 @@ export default function AdminDashboard() {
 
   const stats = [
     {
-      label: 'Пользователей',
+      label: language === 'en' ? 'Users' : language === 'be' ? 'Карыстальнікаў' : 'Пользователей',
       href: '/admin/users',
       value: dashboardStats.users === null ? '...' : String(dashboardStats.users),
       icon: (
@@ -94,7 +97,7 @@ export default function AdminDashboard() {
       bgColor: 'bg-blue-50'
     },
     {
-      label: 'Групп',
+      label: language === 'en' ? 'Groups' : language === 'be' ? 'Груп' : 'Групп',
       href: '/admin/groups',
       value: dashboardStats.groups === null ? '...' : String(dashboardStats.groups),
       icon: (
@@ -106,7 +109,7 @@ export default function AdminDashboard() {
       bgColor: 'bg-emerald-50'
     },
     {
-      label: 'Дисциплин',
+      label: language === 'en' ? 'Disciplines' : language === 'be' ? 'Дысцыплін' : 'Дисциплин',
       href: '/admin/disciplines',
       value: dashboardStats.disciplines === null ? '...' : String(dashboardStats.disciplines),
       icon: (
@@ -118,7 +121,7 @@ export default function AdminDashboard() {
       bgColor: 'bg-lavender-50'
     },
     {
-      label: 'Лабораторных',
+      label: language === 'en' ? 'Laboratory works' : language === 'be' ? 'Лабараторных' : 'Лабораторных',
       href: '/admin/disciplines',
       value: dashboardStats.labWorks === null ? '...' : String(dashboardStats.labWorks),
       icon: (
@@ -136,10 +139,10 @@ export default function AdminDashboard() {
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10 xl:px-10">
         <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between animate-fade-in">
           <div>
-            <Badge variant="secondary" className="mb-3 border-white/70 bg-white/60 shadow-soft">Центр управления</Badge>
-            <h1 className="mb-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Панель администратора</h1>
+            <Badge variant="secondary" className="mb-3 border-white/70 bg-white/60 shadow-soft">{translate(language, 'dashboard')}</Badge>
+            <h1 className="mb-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">{language === 'en' ? 'Administrator panel' : language === 'be' ? 'Панэль адміністратара' : 'Панель администратора'}</h1>
             <p className="max-w-xl text-sm leading-6 text-[hsl(var(--foreground-secondary))] sm:text-base">
-              Управление пользователями, группами и учебными дисциплинами.
+              {language === 'en' ? 'Manage users, groups and academic disciplines.' : language === 'be' ? 'Кіраванне карыстальнікамі, групамі і вучэбнымі дысцыплінамі.' : 'Управление пользователями, группами и учебными дисциплинами.'}
             </p>
           </div>
           <Badge variant="accepted" className="self-start sm:self-auto">Система онлайн</Badge>

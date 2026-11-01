@@ -93,8 +93,8 @@ export default function TeacherDisciplinePage() {
               ;(groups[key] ||= []).push(lab)
               return groups
             }, {})).map(([section, labs]) => (
-              <details key={section} open className="dashboard-card overflow-hidden">
-                <summary className="cursor-pointer list-none px-5 py-4 font-semibold text-slate-900">{section} <span className="ml-2 text-sm font-normal text-slate-500">({labs.length})</span></summary>
+              <details key={section} open className="group dashboard-card overflow-hidden">
+                <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 font-semibold text-slate-900"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-lavender-100 text-lavender-700 transition-transform group-open:rotate-90">›</span>{section} <span className="text-sm font-normal text-slate-500">({labs.length})</span></summary>
                 <div className="space-y-3 border-t border-white/60 p-4">
                   {labs.map(lab => (
                     <div key={lab.id} className="flex flex-col gap-4 rounded-xl bg-white/45 p-4 sm:flex-row sm:items-center sm:justify-between">

@@ -230,10 +230,11 @@ export const getUserById = asyncHandler(async (req: Request, res: Response) => {
 // POST /api/users - создать пользователя (для админа)
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = createUserSchema.parse(req.body)
+  const normalizedEmail = validatedData.email.trim().toLowerCase()
 
   // Проверка существующего пользователя
-  const existingUser = await prisma.user.findUnique({
-    where: { email: validatedData.email }
+  const existingUser = await prisma.user.findFirst({
+    where: { email: { equals: normalizedEmail, mode: 'insensitive' } }
   })
 
   if (existingUser) {
@@ -266,7 +267,7 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
   // Создание пользователя с профилем
   const user = await prisma.user.create({
     data: {
-      email: validatedData.email,
+      email: normalizedEmail,
       passwordHash,
       firstName: validatedData.firstName,
       lastName: validatedData.lastName,

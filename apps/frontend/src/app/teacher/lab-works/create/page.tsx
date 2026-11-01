@@ -11,7 +11,7 @@ import DateTimePicker from '@/components/DateTimePicker'
 interface Discipline {
   id: string
   name: string
-  labWorks?: Array<{ section: string | null }>
+  labWorks?: Array<{ number: number; section: string | null }>
 }
 
 interface UploadedFile {
@@ -67,7 +67,10 @@ export default function CreateLabWorkPage() {
     }
     apiClient.get(`/disciplines/${formData.disciplineId}`)
       .then(response => {
-        const sections = (response.data?.discipline?.labWorks || [])
+        const labWorks = response.data?.discipline?.labWorks || []
+        const nextNumber = labWorks.reduce((max: number, lab: { number: number }) => Math.max(max, lab.number), 0) + 1
+        setFormData(current => ({ ...current, number: nextNumber }))
+        const sections = labWorks
           .map((lab: { section: string | null }) => lab.section?.trim())
           .filter((section: string | undefined): section is string => Boolean(section))
         setSectionOptions(Array.from(new Set<string>(sections)))
@@ -234,30 +237,7 @@ export default function CreateLabWorkPage() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Лабораторная работа создана!</h2>
           <p className="text-gray-600 mb-6">Работа успешно добавлена в систему</p>
-          <div className="mb-6 text-left">
-            <h3 className="mb-3 font-semibold text-gray-900">Методические материалы</h3>
-            <FileUpload
-              uploadUrl={`/files/lab-works/${createdLabWorkId}/upload`}
-              onUploadSuccess={handleFileUpload}
-              multiple
-            />
-            {materialFiles.length > 0 && (
-              <ul className="mt-4 space-y-2">
-                {materialFiles.map(file => (
-                  <li key={file.id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                    <span className="truncate">{file.originalName}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteMaterial(file.id)}
-                      className="ml-3 text-red-600 hover:text-red-700"
-                    >
-                      Удалить
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <p className="mb-6 text-gray-600">Прикреплённый документ уже сохранён как методические материалы.</p>
           <div className="space-y-3">
             <button
               onClick={() => router.push('/teacher/disciplines')}
@@ -339,12 +319,7 @@ export default function CreateLabWorkPage() {
             <div className="space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">Раздел</label>
-                <div className="flex gap-2">
-                  <select value={sectionOptions.includes(formData.section) ? formData.section : '__new__'} onChange={e => setFormData({ ...formData, section: e.target.value === '__new__' ? '' : e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 focus:border-lavender-500 focus:outline-none focus:ring-2 focus:ring-lavender-200">
-                    <option value="__new__">Новый раздел</option>
-                    {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
-                  </select>
-                </div>
+                <Select value={sectionOptions.includes(formData.section) ? formData.section : ''} onChange={value => setFormData({ ...formData, section: value })} placeholder="Выберите существующий раздел" options={sectionOptions.map(section => ({ value: section, label: section }))} />
                 {(!sectionOptions.length || !sectionOptions.includes(formData.section)) && <input value={formData.section} onChange={(e) => setFormData({ ...formData, section: e.target.value })} placeholder="Введите новый раздел" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 focus:border-lavender-500 focus:outline-none focus:ring-2 focus:ring-lavender-200" />}
               </div>
               <div>

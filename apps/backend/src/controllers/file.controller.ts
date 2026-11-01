@@ -44,11 +44,25 @@ export const analyzeLabWorkDocument = asyncHandler(async (req: Request, res: Res
     }
 
     const firstPages = text.replace(/\r/g, '').split('\f').slice(0, 2).join('\n')
-    const normalized = firstPages.replace(/[ \t]+/g, ' ').trim()
+    const withoutFigureCaptions = (value: string) => value
+      .split('\n')
+      .filter(line => !/^\s*(?:рис(?:унок)?\.?|figure)\s*\d*\s*[-–—:]?.*(?:задани[ея]|рисунок|figure)?\s*$/i.test(line))
+      .join('\n')
+    const cleanFirstPages = withoutFigureCaptions(firstPages)
+    const normalized = cleanFirstPages.replace(/[ \t]+/g, ' ').trim()
     const numberMatch = normalized.match(/(?:лабораторн(?:ая|ой)\s+работ(?:а|ы)|практическ(?:ая|ой)\s+работ(?:а|ы)|лр)\s*№?\s*([0-9]+)/i)
     const titleMatch = normalized.match(/(?:тема(?:\s+работы)?|название(?:\s+работы)?)\s*[:\-]\s*[«"“]?\s*([^»"”\r\n]+?)[»"”]?(?=\s*(?:\r?\n|$))/i)
-    const goalMatch = normalized.match(/цель(?:\s+работы)?\s*[:\-]\s*([\s\S]*?)(?=\n\s*(?:задач|теорет|ход|порядок|оборудован|вывод|требован)|$)/i)
-    const procedureMatch = text.replace(/\r/g, '').match(/(?:5[\s.)-]*\s*)?порядок\s+выполнения\s+работы\s*[:\-]?\s*([\s\S]*?)(?=\n\s*(?:контрольн|вывод|список\s+литератур|литератур|$))/i)
+    const sectionHeading = (number: number, title: string) =>
+      new RegExp(`(?:^|\\n)\\s*${number}\\s*[.)-]?\\s*${title}(?:\\s*[:\\-])?\\s*`, 'i')
+    const assignmentHeading = sectionHeading(2, 'задан[иея]\\b')
+    const descriptionStart = cleanFirstPages.match(sectionHeading(1, 'цель\\s+работы'))
+    const descriptionEnd = cleanFirstPages.match(assignmentHeading)
+    const descriptionStartIndex = descriptionStart ? (descriptionStart.index || 0) + descriptionStart[0].length : 0
+    const descriptionEndIndex = descriptionEnd?.index ?? cleanFirstPages.length
+    const description = cleanFirstPages.slice(descriptionStartIndex, descriptionEndIndex).trim()
+    const procedureMatch = withoutFigureCaptions(text.replace(/\r/g, '').replace(/\f/g, '\n')).match(
+      /(?:^|\n)\s*5[\s.)-]*\s*порядок\s+выполнения\s+работ(?:ы)?\s*[:\-]?\s*([\s\S]*?)(?=\n\s*6[\s.)-]*\s*форма\s+отч[её]та\s+о\s+работе\b|$)/i
+    )
     const firstMeaningfulLine = normalized.split('\n').map(line => line.trim()).find(line => line.length > 3)
 
     res.json({
@@ -56,7 +70,7 @@ export const analyzeLabWorkDocument = asyncHandler(async (req: Request, res: Res
       data: {
         number: numberMatch ? Number(numberMatch[1]) : null,
         title: titleMatch?.[1]?.trim() || firstMeaningfulLine || null,
-        description: goalMatch?.[1]?.trim() || null,
+        description: description || null,
         requirements: procedureMatch?.[1]?.trim() || null
       }
     })

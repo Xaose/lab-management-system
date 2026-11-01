@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 
 interface DateTimePickerProps {
   value: string
@@ -34,19 +36,47 @@ const toDateValue = (date: Date, time: string) => {
 
 export default function DateTimePicker({ value, onChange, min }: DateTimePickerProps) {
   const rootRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const parsed = useMemo(() => parseValue(value), [value])
   const [open, setOpen] = useState(false)
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({})
   const [visibleMonth, setVisibleMonth] = useState(
     new Date(parsed.date.getFullYear(), parsed.date.getMonth(), 1)
   )
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false)
+      if (!rootRef.current?.contains(event.target as Node) && !menuRef.current?.contains(event.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', handleOutsideClick)
     return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [])
+
+  const updatePosition = () => {
+    const rect = rootRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const desiredHeight = 420
+    const openUp = window.innerHeight - rect.bottom < desiredHeight
+    const maxHeight = Math.min(desiredHeight, Math.max(240, openUp ? rect.top - 16 : window.innerHeight - rect.bottom - 16))
+    setMenuStyle({
+      position: 'fixed',
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - Math.max(rect.width, 304) - 8)),
+      top: openUp ? Math.max(8, rect.top - maxHeight - 8) : rect.bottom + 8,
+      width: Math.max(rect.width, 304),
+      maxHeight
+    })
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const update = () => updatePosition()
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [open])
 
   const days = useMemo(() => {
     const firstDay = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1)
@@ -70,7 +100,12 @@ export default function DateTimePicker({ value, onChange, min }: DateTimePickerP
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        onClick={() => setOpen(current => !current)}
+        onClick={() => {
+          if (!open) {
+            updatePosition()
+          }
+          setOpen(current => !current)
+        }}
         className="flex h-12 w-full items-center justify-between rounded-xl border border-[hsl(var(--border))] bg-white/90 px-4 text-left shadow-soft transition hover:border-lavender-400 focus:outline-none focus:ring-2 focus:ring-lavender-300"
         aria-expanded={open}
       >
@@ -82,8 +117,8 @@ export default function DateTimePicker({ value, onChange, min }: DateTimePickerP
         </svg>
       </button>
 
-      {open && (
-        <div className="absolute left-0 z-30 mt-2 w-full min-w-[19rem] rounded-2xl border border-white/80 bg-white p-4 shadow-soft-xl">
+      {open && typeof document !== 'undefined' && createPortal(
+        <div ref={menuRef} onMouseDown={event => event.stopPropagation()} style={menuStyle} className="z-[1000] overflow-auto rounded-2xl border border-white/80 bg-white p-4 shadow-xl">
           <div className="mb-4 flex items-center justify-between">
             <button type="button" onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))} className="rounded-lg p-2 text-slate-500 hover:bg-lavender-50 hover:text-lavender-700" aria-label="Предыдущий месяц">←</button>
             <strong className="text-sm text-slate-900">{monthNames[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</strong>
@@ -117,7 +152,8 @@ export default function DateTimePicker({ value, onChange, min }: DateTimePickerP
             <button type="button" onClick={() => { onChange(''); setOpen(false) }} className="text-sm font-medium text-slate-500 hover:text-red-600">Очистить</button>
             <button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-lavender-600 px-4 py-2 text-sm font-semibold text-white hover:bg-lavender-700">Готово</button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

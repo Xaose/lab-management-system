@@ -1,33 +1,54 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/store/auth.store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import AuthScene from '@/components/AuthScene'
-import type { Route } from 'next'
 
 export default function LoginPage() {
-  const router = useRouter()
-  const { setUser, setToken } = useAuthStore()
+  const { setAuth } = useAuthStore()
   const [formData, setFormData] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [resetMode, setResetMode] = useState<'login' | 'request' | 'verify' | 'password'>('login')
+  const [resetId, setResetId] = useState('')
+  const [resetCode, setResetCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [resetAvailable, setResetAvailable] = useState(false)
   const errorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const resetAfterRestore = () => {
-      if (!useAuthStore.getState().token) {
-        setFormData({ email: '', password: '' })
-        setError('')
-      }
+      setFormData({ email: '', password: '' })
+      setError('')
+      setResetMode('login')
+      setResetId('')
+      setResetCode('')
+      setNewPassword('')
     }
     window.addEventListener('pageshow', resetAfterRestore)
     resetAfterRestore()
     return () => window.removeEventListener('pageshow', resetAfterRestore)
   }, [])
+
+  useEffect(() => {
+    const email = formData.email.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setResetAvailable(false)
+      return
+    }
+    let active = true
+    apiClient.get<{ available: boolean }>(`/auth/password-reset-availability?email=${encodeURIComponent(email)}`)
+      .then(response => {
+        if (active) setResetAvailable(response.data?.available === true)
+      })
+      .catch(() => {
+        if (active) setResetAvailable(false)
+      })
+    return () => { active = false }
+  }, [formData.email])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,23 +57,68 @@ export default function LoginPage() {
 
     try {
       const response = await apiClient.login(formData)
+      if (!response.success || !response.data?.token || !response.data?.user?.role) {
+        throw new Error('Сервер не вернул данные авторизации')
+      }
       if (response.success && response.data) {
-        setToken(response.data.token)
-        setUser(response.data.user)
+        setAuth(response.data.token, response.data.user)
         const role = response.data.user.role
         const redirect = new URLSearchParams(window.location.search).get('redirect')
         const roleHome = role === 'STUDENT' ? '/student/dashboard' : role === 'TEACHER' ? '/teacher/dashboard' : '/admin/dashboard'
-        const destination = redirect?.startsWith('/') && !redirect.startsWith('//') ? redirect : roleHome
-        router.push(destination as Route)
+        const rolePrefix = role === 'STUDENT' ? '/student/' : role === 'TEACHER' ? '/teacher/' : '/admin/'
+        const destination = redirect?.startsWith(rolePrefix) && !redirect.startsWith('//') ? redirect : roleHome
+        window.location.replace(destination)
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Ошибка входа. Проверьте данные.')
+      setError(err.response?.data?.error || err.message || 'Ошибка входа. Проверьте данные.')
       window.setTimeout(() => errorRef.current?.focus(), 0)
     } finally {
       setIsLoading(false)
     }
   }
 
+    const handleResetRequest = async () => {
+      setError('')
+      setIsLoading(true)
+      try {
+        const response = await apiClient.post('/auth/forgot-password', { email: formData.email })
+        if (!response.data?.resetId) throw new Error('Восстановление для этого аккаунта недоступно')
+        setResetId(response.data.resetId)
+        setResetMode('verify')
+      } catch (err: any) {
+        setError(err.response?.data?.error || err.message || 'Не удалось отправить код')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    const handleResetVerify = async () => {
+      setError('')
+      setIsLoading(true)
+      try {
+        await apiClient.post('/auth/verify-reset-code', { resetId, code: resetCode })
+        setResetMode('password')
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Неверный код')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    const handleResetPassword = async () => {
+      setError('')
+      setIsLoading(true)
+      try {
+        await apiClient.post('/auth/reset-password', { resetId, code: resetCode, newPassword })
+        setResetMode('login')
+        setFormData(current => ({ ...current, password: '' }))
+        setError('Пароль изменён. Теперь войдите с новым паролем.')
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Не удалось изменить пароль')
+      } finally {
+        setIsLoading(false)
+      }
+    }
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7f5ff] px-4 py-10">
       <AuthScene />
@@ -83,19 +149,21 @@ export default function LoginPage() {
             <p className="text-base leading-6 text-[hsl(var(--foreground-secondary))]">Войдите в рабочее пространство LabFlow.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {resetMode === 'login' ? <form onSubmit={handleSubmit} autoComplete="off" className="space-y-5">
             <div>
               <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
                 Email
               </label>
               <Input
                 id="email"
+                name="login-email"
                 type="email"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="student@example.com"
                 disabled={isLoading}
+                autoComplete="new-password"
               />
             </div>
             <div>
@@ -104,14 +172,21 @@ export default function LoginPage() {
               </label>
               <Input
                 id="password"
+                name="login-password"
                 type="password"
                 required
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="••••••••"
                 disabled={isLoading}
+                autoComplete="new-password"
               />
             </div>
+            {resetAvailable && (
+              <button type="button" className="text-sm font-medium text-lavender-700 hover:underline" onClick={() => setResetMode('request')}>
+                Забыли пароль?
+              </button>
+            )}
             {error && (
               <div ref={errorRef} tabIndex={-1} role="alert" className="rounded-xl border border-red-200/60 bg-red-50 px-4 py-3.5 text-sm text-red-700 shadow-soft animate-fade-in">
                 {error}
@@ -130,7 +205,33 @@ export default function LoginPage() {
                 'Войти'
               )}
             </Button>
-          </form>
+          </form> : (
+            <div className="space-y-5">
+              <h2 className="text-2xl font-bold text-slate-950">
+                {resetMode === 'request' ? 'Восстановление пароля' : resetMode === 'verify' ? 'Введите код из письма' : 'Новый пароль'}
+              </h2>
+              {resetMode === 'request' && (
+                <>
+                  <Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="Ваш email" />
+                  <Button type="button" disabled={isLoading} onClick={handleResetRequest} className="w-full">Отправить код</Button>
+                </>
+              )}
+              {resetMode === 'verify' && (
+                <>
+                  <Input inputMode="numeric" maxLength={6} value={resetCode} onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))} placeholder="6-значный код" />
+                  <Button type="button" disabled={isLoading} onClick={handleResetVerify} className="w-full">Проверить код</Button>
+                </>
+              )}
+              {resetMode === 'password' && (
+                <>
+                  <Input type="password" minLength={6} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Новый пароль" />
+                  <Button type="button" disabled={isLoading} onClick={handleResetPassword} className="w-full">Сохранить пароль</Button>
+                </>
+              )}
+              {error && <div ref={errorRef} tabIndex={-1} role="alert" className="rounded-xl border border-red-200/60 bg-red-50 px-4 py-3.5 text-sm text-red-700">{error}</div>}
+              <button type="button" className="w-full text-sm text-slate-600 hover:underline" onClick={() => { setResetMode('login'); setError('') }}>Вернуться ко входу</button>
+            </div>
+          )}
           <p className="mt-6 text-center text-sm text-[hsl(var(--foreground-secondary))]">
             Нет аккаунта? Обратитесь к администратору
           </p>

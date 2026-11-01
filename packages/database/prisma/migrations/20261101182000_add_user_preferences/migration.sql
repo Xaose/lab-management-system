@@ -1,0 +1,3 @@
+ALTER TABLE "users" ADD COLUMN "theme" TEXT NOT NULL DEFAULT 'light';
+ALTER TABLE "users" ADD COLUMN "accent_color" TEXT;
+ALTER TABLE "users" ADD COLUMN "language" TEXT NOT NULL DEFAULT 'ru';

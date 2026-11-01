@@ -11,14 +11,31 @@ export function middleware(request: NextRequest) {
   let user = null
   if (authUser) {
     try {
-      user = JSON.parse(authUser)
+      user = JSON.parse(decodeURIComponent(authUser))
     } catch (e) {
-      // Invalid JSON
+      try {
+        user = JSON.parse(authUser)
+      } catch {
+        user = null
+      }
     }
   }
 
-  const isAuthenticated = !!authToken && !!user
-  const userRole = user?.role
+  let tokenPayload: { role?: string } | null = null
+  if (authToken) {
+    try {
+      const encodedPayload = authToken.split('.')[1]
+      if (encodedPayload) {
+        const normalizedPayload = encodedPayload.replace(/-/g, '+').replace(/_/g, '/')
+        tokenPayload = JSON.parse(atob(normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, '=')))
+      }
+    } catch {
+      tokenPayload = null
+    }
+  }
+
+  const isAuthenticated = !!authToken && !!tokenPayload
+  const userRole = typeof user?.role === 'string' ? user.role : tokenPayload?.role || null
 
   // Публичные маршруты (только страница входа)
   const publicRoutes = ['/auth/login']
@@ -28,7 +45,8 @@ export function middleware(request: NextRequest) {
   if (pathname === '/') {
     if (isAuthenticated) {
       // Перенаправить в кабинет
-      const role = userRole.toLowerCase()
+      const role = userRole?.toLowerCase()
+      if (!role) return NextResponse.redirect(new URL('/auth/login', request.url))
       return NextResponse.redirect(new URL(`/${role}/dashboard`, request.url))
     } else {
       // Перенаправить на вход
@@ -41,7 +59,8 @@ export function middleware(request: NextRequest) {
 
   // Если пользователь авторизован и пытается зайти на страницу входа
   if (isAuthenticated && isAuthRoute) {
-    const role = userRole.toLowerCase()
+    const role = userRole?.toLowerCase()
+    if (!role) return NextResponse.redirect(new URL('/auth/login', request.url))
     return NextResponse.redirect(new URL(`/${role}/dashboard`, request.url))
   }
 

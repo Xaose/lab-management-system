@@ -21,7 +21,7 @@ export default function RootLayout({
       <body className={`${inter.className} flex min-h-screen`}>
         <Providers>
           <Navbar />
-          <main className="min-w-0 flex-1">{children}</main>
+          <main className="min-w-0 flex-1 pb-16 lg:pb-0">{children}</main>
         </Providers>
       </body>
     </html>

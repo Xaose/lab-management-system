@@ -11,6 +11,10 @@ interface User {
   lastName: string
   role: UserRole
   avatarUrl?: string | null
+  theme?: 'light' | 'dark' | 'system'
+  accentColor?: string | null
+  language?: 'ru' | 'en' | 'be'
+  passwordChanged?: boolean
 }
 
 interface AuthState {
@@ -19,6 +23,7 @@ interface AuthState {
   isLoading: boolean
   setUser: (user: User | null) => void
   setToken: (token: string | null) => void
+  setAuth: (token: string, user: User) => void
   setLoading: (loading: boolean) => void
   logout: () => void
 }
@@ -27,8 +32,8 @@ interface AuthState {
 const syncWithCookies = (token: string | null, user: User | null) => {
   if (typeof window !== 'undefined') {
     if (token && user) {
-      document.cookie = `auth-token=${token}; path=/; max-age=604800; samesite=lax`
-      document.cookie = `auth-user=${JSON.stringify(user)}; path=/; max-age=604800; samesite=lax`
+      document.cookie = `auth-token=${encodeURIComponent(token)}; path=/; max-age=604800; samesite=lax`
+      document.cookie = `auth-user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=604800; samesite=lax`
     } else {
       document.cookie = 'auth-token=; path=/; max-age=0'
       document.cookie = 'auth-user=; path=/; max-age=0'
@@ -49,6 +54,10 @@ export const useAuthStore = create<AuthState>()(
       setToken: (token) => {
         set({ token })
         syncWithCookies(token, useAuthStore.getState().user)
+      },
+      setAuth: (token, user) => {
+        set({ token, user })
+        syncWithCookies(token, user)
       },
       setLoading: (isLoading) => set({ isLoading }),
       logout: () => {

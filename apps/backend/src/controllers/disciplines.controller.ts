@@ -221,6 +221,7 @@ export const getDisciplineById = asyncHandler(async (req: Request, res: Response
         select: {
           id: true,
           number: true,
+          section: true,
           title: true,
           status: true,
           maxScore: true,

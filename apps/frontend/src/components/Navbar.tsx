@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store'
 import type { UserRole } from '@lab/types'
 import { Button } from '@/components/ui/button'
 import type { Route } from 'next'
+import PreferencesMenu from './PreferencesMenu'
 
 // Icons using SVG for better visual consistency
 const HomeIcon = () => (
@@ -42,6 +43,12 @@ const UsersIcon = () => (
 const GroupIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+  </svg>
+)
+
+const GameIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 13h8m-4-4v8m8.5 2.5a3.5 3.5 0 01-5.8-.9l-.7-1.4H10l-.7 1.4a3.5 3.5 0 11-6.1-3.4l2.2-4.1A4 4 0 018.9 9h6.2a4 4 0 013.5 2.1l2.2 4.1a3.5 3.5 0 01-.3 3.3z" />
   </svg>
 )
 
@@ -89,6 +96,7 @@ export default function Navbar() {
         { href: '/student/disciplines', label: 'Дисциплины', icon: BookIcon },
         { href: '/student/submissions', label: 'Мои работы', icon: DocumentIcon },
         { href: '/notifications', label: 'Уведомления', icon: CheckIcon },
+        { href: '/entertainment', label: 'Развлечения', icon: GameIcon },
       ]
     : user.role === 'TEACHER'
       ? [
@@ -97,12 +105,14 @@ export default function Navbar() {
           { href: '/teacher/groups', label: 'Группы', icon: GroupIcon },
           { href: '/teacher/submissions', label: 'Проверка работ', icon: CheckIcon },
           { href: '/notifications', label: 'Уведомления', icon: CheckIcon },
+          { href: '/entertainment', label: 'Развлечения', icon: GameIcon },
         ]
       : [
           { href: '/admin/dashboard', label: 'Главная', icon: HomeIcon },
           { href: '/admin/users', label: 'Пользователи', icon: UsersIcon },
           { href: '/admin/groups', label: 'Группы', icon: GroupIcon },
           { href: '/admin/disciplines', label: 'Дисциплины', icon: BookIcon },
+          { href: '/entertainment', label: 'Развлечения', icon: GameIcon },
         ]
 
   const roleLabels: Record<UserRole, string> = {
@@ -110,6 +120,20 @@ export default function Navbar() {
     TEACHER: 'Преподаватель',
     ADMIN: 'Администратор',
   }
+  const translations = user.language === 'en'
+    ? { home: 'Home', disciplines: 'Disciplines', submissions: 'My work', notifications: 'Notifications', groups: 'Groups', review: 'Review work', users: 'Users', profile: 'Profile', logout: 'Log out', entertainment: 'Entertainment' }
+    : user.language === 'be'
+      ? { home: 'Галоўная', disciplines: 'Дысцыпліны', submissions: 'Мае работы', notifications: 'Апавяшчэнні', groups: 'Групы', review: 'Праверка работ', users: 'Карыстальнікі', profile: 'Профіль', logout: 'Выйсці', entertainment: 'Забавы' }
+      : { home: 'Главная', disciplines: 'Дисциплины', submissions: 'Мои работы', notifications: 'Уведомления', groups: 'Группы', review: 'Проверка работ', users: 'Пользователи', profile: 'Профиль', logout: 'Выйти', entertainment: 'Развлечения' }
+  const translatedLinks = navigationLinks.map(link => ({
+    ...link,
+    label: link.href.includes('dashboard') ? translations.home :
+      link.href.includes('disciplines') ? translations.disciplines :
+        link.href.includes('submissions') ? (user.role === 'TEACHER' ? translations.review : translations.submissions) :
+          link.href.includes('notifications') ? translations.notifications :
+          link.href.includes('groups') ? translations.groups :
+            link.href.includes('entertainment') ? translations.entertainment : translations.users
+  }))
 
   const handleLogout = () => {
     logout()
@@ -117,10 +141,10 @@ export default function Navbar() {
   }
 
   return (
-    <aside className={`sticky top-0 z-50 flex h-screen shrink-0 flex-col items-center border-r border-white/20 bg-[hsl(258_55%_79%)] py-6 transition-[width] duration-300 lg:items-stretch lg:px-4 animate-fade-in ${collapsed ? 'w-[68px] lg:w-20' : 'w-[68px] lg:w-64'}`}>
+    <aside className={`sticky top-0 z-50 flex h-screen shrink-0 flex-col items-center border-r border-white/20 bg-[hsl(258_55%_79%)] py-6 transition-[width] duration-300 lg:items-stretch lg:px-4 animate-fade-in max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 max-lg:top-auto max-lg:z-[100] max-lg:h-16 max-lg:w-full max-lg:flex-row max-lg:justify-between max-lg:border-r-0 max-lg:border-t max-lg:px-2 max-lg:py-2 ${collapsed ? 'w-[68px] lg:w-20' : 'w-[68px] lg:w-64'}`}>
       <Link
         href={dashboardHref}
-        className={`mb-6 flex items-center justify-center gap-3 transition-transform hover:scale-105 lg:px-3 ${collapsed ? 'lg:justify-center' : 'lg:justify-start'}`}
+        className={`mb-6 flex items-center justify-center gap-3 transition-transform hover:scale-105 lg:px-3 max-lg:hidden ${collapsed ? 'lg:justify-center' : 'lg:justify-start'}`}
       >
         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[hsl(var(--primary))] text-lg font-bold text-white shadow-soft-md">
           L
@@ -133,8 +157,8 @@ export default function Navbar() {
         </svg>
       </button>
 
-      <nav className={`flex w-full flex-1 flex-col items-center gap-2 lg:items-stretch ${collapsed ? 'lg:items-center' : ''}`}>
-        {navigationLinks.map((link, index) => {
+      <nav className={`flex w-full flex-1 flex-col items-center gap-2 lg:items-stretch max-lg:flex-row max-lg:justify-around max-lg:gap-1 ${collapsed ? 'lg:items-center' : ''}`}>
+        {translatedLinks.map((link, index) => {
           const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`)
           const Icon = link.icon
           return (
@@ -142,7 +166,7 @@ export default function Navbar() {
               key={link.href}
               href={link.href}
               title={link.label}
-              className={`group relative flex items-center justify-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-all duration-200 animate-slide-in stagger-${index + 1} ${collapsed ? 'lg:w-12 lg:justify-center' : 'lg:justify-start'} ${
+              className={`group relative flex items-center justify-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-all duration-200 animate-slide-in stagger-${index + 1} max-lg:h-12 max-lg:min-w-10 max-lg:px-2 ${collapsed ? 'lg:w-12 lg:justify-center' : 'lg:justify-start'} ${
                 isActive
                   ? 'bg-white/70 text-[hsl(var(--primary-dark))] shadow-[0_4px_14px_rgba(59,34,116,0.08)]'
                   : 'text-slate-700 hover:bg-white/35 hover:text-[hsl(var(--primary-dark))]'
@@ -165,12 +189,13 @@ export default function Navbar() {
         })}
       </nav>
 
-      <div className={`mt-auto w-full space-y-3 ${collapsed ? 'lg:flex lg:flex-col lg:items-center' : ''}`}>
-        <Link href="/profile" title="Профиль" className={`flex items-center gap-3 p-1 text-sm transition hover:text-[hsl(var(--primary-dark))] ${collapsed ? 'lg:h-12 lg:w-12 lg:justify-center lg:p-0 lg:hover:scale-105' : ''}`}>
+      <div className={`mt-auto w-full space-y-3 max-lg:flex max-lg:w-auto max-lg:items-center max-lg:gap-1 max-lg:space-y-0 ${collapsed ? 'lg:flex lg:flex-col lg:items-center' : ''}`}>
+        <PreferencesMenu collapsed={collapsed} />
+        <Link href="/profile" title={translations.profile} className={`flex items-center gap-3 p-1 text-sm transition hover:text-[hsl(var(--primary-dark))] max-lg:h-12 max-lg:w-12 max-lg:justify-center ${collapsed ? 'lg:h-12 lg:w-12 lg:justify-center lg:p-0 lg:hover:scale-105' : ''}`}>
           <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-lavender-300 to-lavender-200 text-sm font-bold text-lavender-900">
             {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : `${user.firstName[0]}${user.lastName[0]}`}
           </div>
-          <div className={`min-w-0 flex-1 ${collapsed ? 'lg:hidden' : ''}`}>
+          <div className={`min-w-0 flex-1 max-lg:hidden ${collapsed ? 'lg:hidden' : ''}`}>
             <p className="truncate text-sm font-semibold text-slate-900">{user.firstName} {user.lastName}</p>
             <p className="text-xs text-slate-600">{roleLabels[user.role]}</p>
           </div>
@@ -178,14 +203,14 @@ export default function Navbar() {
         <Button
           variant="ghost"
           size="icon"
-          title="Выйти"
+          title={translations.logout}
           onClick={handleLogout}
-          className={`mx-auto p-3 text-slate-600 hover:bg-red-100/60 hover:text-red-700 lg:mx-0 lg:gap-3 ${collapsed ? 'lg:h-12 lg:w-12 lg:justify-center' : 'lg:w-full lg:justify-start'}`}
+          className={`mx-auto p-3 text-slate-600 hover:bg-red-100/60 hover:text-red-700 max-lg:h-12 max-lg:w-12 max-lg:justify-center lg:mx-0 lg:gap-3 ${collapsed ? 'lg:h-12 lg:w-12 lg:justify-center' : 'lg:w-full lg:justify-start'}`}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          <span className={`hidden ${collapsed ? '' : 'lg:block'}`}>Выйти</span>
+          <span className={`hidden ${collapsed ? '' : 'lg:block'}`}>{translations.logout}</span>
         </Button>
       </div>
     </aside>

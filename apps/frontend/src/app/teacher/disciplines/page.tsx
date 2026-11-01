@@ -8,6 +8,7 @@ import { Card, CardHover } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useProgressiveItems } from '@/lib/use-progressive-items'
 
 interface Discipline {
   id: string
@@ -20,6 +21,7 @@ interface Discipline {
 export default function TeacherDisciplinesPage() {
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
   const [loading, setLoading] = useState(true)
+  const visibleDisciplines = useProgressiveItems(disciplines)
 
   useEffect(() => {
     loadDisciplines()
@@ -89,7 +91,8 @@ export default function TeacherDisciplinesPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {disciplines.map((discipline, index) => (
+            {disciplines.length > 0 && visibleDisciplines.length === 0 && [1, 2].map(item => <Skeleton key={item} className="h-48" />)}
+            {visibleDisciplines.map((discipline, index) => (
               <CardHover
                 key={discipline.id}
                 className={`p-7 transition-all duration-200 animate-fade-in stagger-${Math.min(index + 1, 6)}`}

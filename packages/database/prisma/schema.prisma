@@ -66,11 +66,13 @@ model Student {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   studentIdNumber String   @unique @map("student_id_number") // Номер зачётной книжки
-  groupId         String   @map("group_id")
-  group           Group    @relation(fields: [groupId], references: [id])
+  groupId         String?  @map("group_id")
+  group           Group?   @relation(fields: [groupId], references: [id])
 
   course          Int      // Курс обучения
   program         String   // Направление подготовки
+  programId       String?  @map("program_id")
+  programRef      Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
   faculty         String   // Факультет
 
   submissions     Submission[]
@@ -87,7 +89,7 @@ model Teacher {
   userId          String   @unique @map("user_id")
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  position        String   // Должность
+  position        String?  // Вычисляется по дисциплинам преподавателя
   department      String   // Кафедра
   degree          String?  // Учёная степень
   title           String?  // Учёное звание
@@ -120,6 +122,8 @@ model Group {
   name        String   @unique // Например: "ИС-21"
   course      Int
   program     String   // Направление подготовки
+  programId   String?    @map("program_id")
+  programRef  Program?   @relation(fields: [programId], references: [id], onDelete: SetNull)
   faculty     String   // Факультет
   facultyId   String?  @map("faculty_id")
   facultyRef  Faculty? @relation(fields: [facultyId], references: [id], onDelete: SetNull)
@@ -141,6 +145,16 @@ model Faculty {
   groups    Group[]
 
   @@map("faculties")
+}
+
+model Program {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now()) @map("created_at")
+  groups    Group[]
+  students  Student[]
+
+  @@map("programs")
 }
 
 // ============================================
@@ -224,6 +238,7 @@ model LabWork {
   discipline      Discipline    @relation(fields: [disciplineId], references: [id], onDelete: Cascade)
 
   number          Int           // Номер лабораторной
+  section         String?       // Раздел лабораторных работ
   title           String
   description     String        @db.Text
   requirements    String?       @db.Text // Требования к выполнению

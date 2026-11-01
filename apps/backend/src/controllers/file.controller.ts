@@ -5,11 +5,96 @@ import fs from 'fs'
 import unzipper from 'unzipper'
 import { AppError, asyncHandler } from '../middleware/error.middleware'
 import { getUploadsDir } from '../middleware/upload.middleware'
+import crypto from 'crypto'
+import { TextDecoder } from 'util'
+import mammoth from 'mammoth'
+import pdfParse from 'pdf-parse'
 
 const getOriginalFileName = (name: string) => {
   const decoded = Buffer.from(name, 'latin1').toString('utf8')
   return decoded.includes('\ufffd') ? name : decoded
 }
+
+export const getReusableLabWorkFiles = asyncHandler(async (req: Request, res: Response) => {
+  const files = await prisma.file.findMany({
+    where: { uploadedById: req.user?.userId, labWorkId: { not: null } },
+    select: { id: true, originalName: true, size: true, uploadedAt: true, labWork: { select: { title: true, number: true } } },
+    orderBy: { uploadedAt: 'desc' },
+    take: 100
+  })
+
+  res.json({ success: true, data: { files } })
+})
+
+export const analyzeLabWorkDocument = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) throw new AppError(400, 'No document uploaded')
+  const extension = path.extname(req.file.originalname).toLowerCase()
+  try {
+    let text = ''
+    if (extension === '.pdf') {
+      text = (await pdfParse(await fs.promises.readFile(req.file.path))).text
+    } else if (extension === '.docx') {
+      text = (await mammoth.extractRawText({ path: req.file.path })).value
+    } else if (extension === '.txt') {
+      const buffer = await fs.promises.readFile(req.file.path)
+      const utf8 = buffer.toString('utf8')
+      text = utf8.includes('\ufffd') ? new TextDecoder('windows-1251').decode(buffer) : utf8
+    } else {
+      throw new AppError(400, 'Для анализа поддерживаются PDF, DOCX и TXT')
+    }
+
+    const firstPages = text.replace(/\r/g, '').split('\f').slice(0, 2).join('\n')
+    const normalized = firstPages.replace(/[ \t]+/g, ' ').trim()
+    const numberMatch = normalized.match(/(?:лабораторн(?:ая|ой)\s+работ(?:а|ы)|практическ(?:ая|ой)\s+работ(?:а|ы)|лр)\s*№?\s*([0-9]+)/i)
+    const titleMatch = normalized.match(/(?:тема(?:\s+работы)?|название(?:\s+работы)?)\s*[:\-]\s*[«"“]?\s*([^»"”\r\n]+?)[»"”]?(?=\s*(?:\r?\n|$))/i)
+    const goalMatch = normalized.match(/цель(?:\s+работы)?\s*[:\-]\s*([\s\S]*?)(?=\n\s*(?:задач|теорет|ход|порядок|оборудован|вывод|требован)|$)/i)
+    const procedureMatch = text.replace(/\r/g, '').match(/(?:5[\s.)-]*\s*)?порядок\s+выполнения\s+работы\s*[:\-]?\s*([\s\S]*?)(?=\n\s*(?:контрольн|вывод|список\s+литератур|литератур|$))/i)
+    const firstMeaningfulLine = normalized.split('\n').map(line => line.trim()).find(line => line.length > 3)
+
+    res.json({
+      success: true,
+      data: {
+        number: numberMatch ? Number(numberMatch[1]) : null,
+        title: titleMatch?.[1]?.trim() || firstMeaningfulLine || null,
+        description: goalMatch?.[1]?.trim() || null,
+        requirements: procedureMatch?.[1]?.trim() || null
+      }
+    })
+  } finally {
+    removeUploadedFile(req.file.path)
+  }
+})
+
+export const reuseLabWorkFile = asyncHandler(async (req: Request, res: Response) => {
+  const source = await prisma.file.findFirst({
+    where: { id: req.body.fileId, uploadedById: req.user?.userId, labWorkId: { not: null } }
+  })
+  if (!source) throw new AppError(404, 'Reusable file not found')
+  const labWork = await prisma.labWork.findUnique({
+    where: { id: req.params.id },
+    include: { discipline: { include: { teachers: true } } }
+  })
+  if (!labWork) throw new AppError(404, 'Lab work not found')
+  if (req.user?.role === 'TEACHER') {
+    const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.userId } })
+    if (labWork.discipline.createdById !== teacher?.id && !labWork.discipline.teachers.some(item => item.teacherId === teacher?.id)) {
+      throw new AppError(403, 'Access denied')
+    }
+  }
+  const file = await prisma.file.create({
+    data: {
+      originalName: source.originalName,
+      storedName: `${crypto.randomUUID()}-${source.storedName}`,
+      extension: source.extension,
+      mimeType: source.mimeType,
+      size: source.size,
+      path: source.path,
+      uploadedById: req.user!.userId,
+      labWorkId: labWork.id
+    }
+  })
+  res.status(201).json({ success: true, data: { file } })
+})
 
 const removeUploadedFile = (filePath: string) => {
   if (fs.existsSync(filePath)) {
@@ -298,7 +383,7 @@ export const downloadFile = asyncHandler(async (req: Request, res: Response) => 
           }
         }
       })
-      hasAccess = student?.group.disciplines.some(
+      hasAccess = student?.group?.disciplines.some(
         d => d.disciplineId === file.labWork?.disciplineId
       ) || false
     } else if (userRole === 'TEACHER') {

@@ -9,6 +9,7 @@ import { labWorkSlug } from '@/lib/slug'
 interface LabWork {
   id: string
   number: number
+  section: string | null
   title: string
   description: string
   dueDate: string | null
@@ -106,7 +107,15 @@ export default function StudentDisciplinePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {labWorks.map((labWork) => (
+            {Object.entries(labWorks.reduce<Record<string, LabWork[]>>((groups, labWork) => {
+              const key = labWork.section?.trim() || 'Без раздела'
+              ;(groups[key] ||= []).push(labWork)
+              return groups
+            }, {})).map(([section, works]) => (
+              <details key={section} open className="dashboard-card overflow-hidden">
+                <summary className="cursor-pointer list-none px-5 py-4 font-semibold text-slate-900">{section} <span className="ml-2 text-sm font-normal text-slate-500">({works.length})</span></summary>
+                <div className="space-y-3 border-t border-white/60 p-4">
+                {works.map((labWork) => (
               <Link
                 key={labWork.id}
                 href={`/student/lab-works/${labWorkSlug(labWork.number, labWork.title)}`}
@@ -148,6 +157,9 @@ export default function StudentDisciplinePage() {
                   </svg>
                 </div>
               </Link>
+                ))}
+                </div>
+              </details>
             ))}
           </div>
         )}

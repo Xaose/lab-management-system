@@ -17,15 +17,25 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   useEffect(() => {
     // Если нет токена, перенаправляем на логин
     if (!isLoading && !token) {
-      router.push('/auth/login')
+      router.replace('/auth/login')
       return
     }
 
     // Если указаны разрешённые роли, проверяем доступ
     if (!isLoading && user && allowedRoles && !allowedRoles.includes(user.role)) {
-      router.push('/unauthorized')
+      router.replace('/unauthorized')
     }
   }, [user, token, isLoading, allowedRoles, router])
+
+  useEffect(() => {
+    const handlePageShow = () => {
+      if (!useAuthStore.getState().token) {
+        router.replace('/auth/login')
+      }
+    }
+    window.addEventListener('pageshow', handlePageShow)
+    return () => window.removeEventListener('pageshow', handlePageShow)
+  }, [router])
 
   // Показываем loader пока проверяем авторизацию
   if (isLoading || !user || !token) {

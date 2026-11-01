@@ -11,6 +11,7 @@ import DateTimePicker from '@/components/DateTimePicker'
 interface Discipline {
   id: string
   name: string
+  labWorks?: Array<{ section: string | null }>
 }
 
 interface UploadedFile {
@@ -28,10 +29,15 @@ export default function CreateLabWorkPage() {
   const [createdLabWorkId, setCreatedLabWorkId] = useState<string | null>(null)
   const [materialFiles, setMaterialFiles] = useState<UploadedFile[]>([])
   const [assignmentFiles, setAssignmentFiles] = useState<File[]>([])
+  const [existingFiles, setExistingFiles] = useState<Array<{ id: string; originalName: string; labWork?: { title: string; number: number } }>>([])
+  const [existingFileId, setExistingFileId] = useState('')
+  const [analyzing, setAnalyzing] = useState(false)
+  const [sectionOptions, setSectionOptions] = useState<string[]>([])
 
   const [formData, setFormData] = useState({
     disciplineId: '',
     number: 1,
+    section: '',
     title: '',
     description: '',
     requirements: '',
@@ -46,12 +52,28 @@ export default function CreateLabWorkPage() {
 
   useEffect(() => {
     loadDisciplines()
+    apiClient.get('/files/reusable-lab-work-files').then(response => setExistingFiles(response.data?.files || [])).catch(() => undefined)
   }, [])
 
   useEffect(() => {
     const disciplineId = new URLSearchParams(window.location.search).get('disciplineId')
     if (disciplineId) setFormData(current => ({ ...current, disciplineId }))
   }, [])
+
+  useEffect(() => {
+    if (!formData.disciplineId) {
+      setSectionOptions([])
+      return
+    }
+    apiClient.get(`/disciplines/${formData.disciplineId}`)
+      .then(response => {
+        const sections = (response.data?.discipline?.labWorks || [])
+          .map((lab: { section: string | null }) => lab.section?.trim())
+          .filter((section: string | undefined): section is string => Boolean(section))
+        setSectionOptions(Array.from(new Set<string>(sections)))
+      })
+      .catch(() => setSectionOptions([]))
+  }, [formData.disciplineId])
 
   const loadDisciplines = async () => {
     try {
@@ -118,12 +140,39 @@ export default function CreateLabWorkPage() {
           }
         }
 
+        if (existingFileId) {
+          await apiClient.post(`/files/lab-works/${labWorkId}/reuse`, { fileId: existingFileId })
+        }
+
         setCreatedLabWorkId(labWorkId)
         setAssignmentFiles([])
       }
+
     } catch (err: any) {
       setError(err.response?.data?.error || 'Ошибка создания лабораторной работы')
       setSubmitting(false)
+    }
+  }
+
+  const analyzeDocument = async (file: File) => {
+      setAnalyzing(true)
+      setError('')
+      try {
+        const data = new FormData()
+        data.append('file', file)
+        const response = await apiClient.upload('/files/lab-works/analyze-document', data)
+        const analysis = response.data
+        setFormData(current => ({
+          ...current,
+          number: analysis.number || current.number,
+          title: analysis.title || current.title,
+          description: analysis.description || current.description,
+          requirements: analysis.requirements || current.requirements
+        }))
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Не удалось проанализировать документ')
+      } finally {
+        setAnalyzing(false)
     }
   }
 
@@ -176,8 +225,8 @@ export default function CreateLabWorkPage() {
 
   if (createdLabWorkId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center bg-white rounded-xl shadow-sm p-8">
+      <div className="dashboard-page flex min-h-screen items-center justify-center p-6">
+        <div className="dashboard-card max-w-md mx-auto p-8 text-center animate-fade-in-scale">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -239,8 +288,8 @@ export default function CreateLabWorkPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="dashboard-page min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl animate-fade-in">
         <div className="mb-8">
           <Link
             href="/teacher/disciplines"
@@ -257,10 +306,47 @@ export default function CreateLabWorkPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="dashboard-card p-6 animate-fade-in stagger-1">
+            <h2 className="mb-1 text-xl font-semibold text-slate-900">Документ задания</h2>
+            <p className="mb-4 text-sm text-slate-500">Загрузите PDF, DOCX или TXT. Система попробует найти номер, тему и цель работы.</p>
+            <div className="rounded-2xl border border-dashed border-lavender-300 bg-lavender-50/50 p-4">
+              <label className="flex cursor-pointer items-center gap-4 rounded-xl border border-lavender-200 bg-white px-4 py-4 shadow-sm transition hover:border-lavender-400 hover:bg-lavender-50">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lavender-100 text-lavender-700">
+                  {analyzing ? '...' : '↑'}
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-semibold text-slate-800">{analyzing ? 'Анализируем документ...' : 'Выберите файл задания'}</span>
+                  <span className="mt-1 block truncate text-sm text-slate-500">{assignmentFiles[0]?.name || 'PDF, DOCX или TXT — данные заполнятся автоматически'}</span>
+                </span>
+                <input type="file" accept=".pdf,.docx,.txt" onChange={event => {
+                  const file = event.target.files?.[0]
+                  if (file) {
+                    setAssignmentFiles([file])
+                    setExistingFileId('')
+                    void analyzeDocument(file)
+                  }
+                }} className="sr-only" />
+              </label>
+            </div>
+            <div className="mt-3">
+              <Select value={existingFileId} onChange={value => { setExistingFileId(value); if (value) setAssignmentFiles([]) }} placeholder="Или выбрать ранее прикреплённый файл" options={existingFiles.map(file => ({ value: file.id, label: `${file.originalName}${file.labWork ? ` · ЛР №${file.labWork.number}` : ''}` }))} />
+            </div>
+          </div>
+
+          <div className="dashboard-card p-6 animate-fade-in stagger-1">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Основная информация</h2>
 
             <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Раздел</label>
+                <div className="flex gap-2">
+                  <select value={sectionOptions.includes(formData.section) ? formData.section : '__new__'} onChange={e => setFormData({ ...formData, section: e.target.value === '__new__' ? '' : e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 focus:border-lavender-500 focus:outline-none focus:ring-2 focus:ring-lavender-200">
+                    <option value="__new__">Новый раздел</option>
+                    {sectionOptions.map(section => <option key={section} value={section}>{section}</option>)}
+                  </select>
+                </div>
+                {(!sectionOptions.length || !sectionOptions.includes(formData.section)) && <input value={formData.section} onChange={(e) => setFormData({ ...formData, section: e.target.value })} placeholder="Введите новый раздел" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 focus:border-lavender-500 focus:outline-none focus:ring-2 focus:ring-lavender-200" />}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Дисциплина *
@@ -364,14 +450,17 @@ export default function CreateLabWorkPage() {
               </div>
 
               <div>
-                <label className="flex items-center gap-2">
+                <label className="flex cursor-pointer items-center gap-3">
+                <span className={`relative h-7 w-12 rounded-full transition ${formData.allowResubmit ? 'bg-lavender-600' : 'bg-slate-300'}`}>
                   <input
-                    type="checkbox"
-                    checked={formData.allowResubmit}
-                    onChange={(e) => setFormData({ ...formData, allowResubmit: e.target.checked })}
-                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  type="checkbox"
+                  checked={formData.allowResubmit}
+                  onChange={(e) => setFormData({ ...formData, allowResubmit: e.target.checked })}
+                  className="sr-only"
                   />
-                  <span className="text-sm text-gray-700">Разрешить повторную сдачу</span>
+                  <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${formData.allowResubmit ? 'left-6' : 'left-1'}`} />
+                </span>
+                <span className="text-sm font-medium text-slate-700">Разрешить повторную сдачу</span>
                 </label>
               </div>
 
@@ -386,20 +475,27 @@ export default function CreateLabWorkPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Файл задания
                 </label>
-                <input
+                <label className="flex cursor-pointer items-center gap-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition hover:border-lavender-400 hover:bg-lavender-50">
+                  <span className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-lavender-700 shadow-sm">Прикрепить</span>
+                  <span className="min-w-0 truncate text-sm text-slate-600">{assignmentFiles.length ? `${assignmentFiles.length} файл(ов) выбрано` : 'Выберите материалы задания'}</span>
+                  <input
                   type="file"
                   multiple
-                  onChange={event => setAssignmentFiles(Array.from(event.target.files || []))}
+                  onChange={event => {
+                    const selected = Array.from(event.target.files || [])
+                    setAssignmentFiles(current => [...current, ...selected.filter(file => !current.some(item => item.name === file.name && item.size === file.size))])
+                  }}
                   accept=".pdf,.docx,.doc,.zip,.rar,.txt,.png,.jpg,.jpeg"
-                  className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm"
-                />
+                  className="sr-only"
+                  />
+                </label>
                 <p className="mt-2 text-xs text-gray-500">Файл прикрепится сразу после создания лабораторной работы.</p>
               </div>
             </div>
           </div>
 
           {/* File settings */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="dashboard-card p-6 animate-fade-in stagger-2">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Настройки файлов</h2>
 
             <div className="space-y-4">
@@ -415,9 +511,10 @@ export default function CreateLabWorkPage() {
                       onClick={() => toggleFormat(format.value)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                         formData.allowedFormats.includes(format.value)
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'border-lavender-600 bg-lavender-600 text-white shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-lavender-300 hover:bg-lavender-50'
                       }`}
+                      aria-pressed={formData.allowedFormats.includes(format.value)}
                     >
                       {format.label}
                     </button>
@@ -451,7 +548,7 @@ export default function CreateLabWorkPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 rounded-xl bg-lavender-700 px-6 py-3 font-semibold text-white shadow-lg shadow-lavender-700/20 transition hover:bg-lavender-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? 'Создание...' : 'Создать лабораторную работу'}
             </button>

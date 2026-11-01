@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { FieldHint } from '@/components/ui/field-hint'
 
 type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN'
 type UserStatus = 'ACTIVE' | 'BLOCKED' | 'INACTIVE'
@@ -26,6 +27,7 @@ interface CreateUserForm {
   groupId: string
   course: number
   program: string
+  programId: string
   faculty: string
   position: string
   department: string
@@ -54,8 +56,9 @@ interface User {
   }
   teacher?: {
     id: string
-    position: string
+    position?: string | null
     department: string
+    disciplinesTeaching?: Array<{ discipline: { name: string } }>
   }
 }
 
@@ -73,6 +76,7 @@ export default function UsersPage() {
   const [editData, setEditData] = useState({ firstName: '', lastName: '', email: '', phone: '' })
   const [creating, setCreating] = useState(false)
   const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([])
+  const [programs, setPrograms] = useState<Array<{ id: string; name: string }>>([])
   const [createError, setCreateError] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<{ type: 'block' | 'delete'; userId: string } | null>(null)
   const [formData, setFormData] = useState<CreateUserForm>({
@@ -87,6 +91,7 @@ export default function UsersPage() {
     groupId: '',
     course: 1,
     program: '',
+    programId: '',
     faculty: '',
     position: '',
     department: '',
@@ -124,6 +129,7 @@ export default function UsersPage() {
     }).catch((err: any) => {
       setCreateError(err.response?.data?.error || 'Ошибка загрузки групп')
     })
+    apiClient.get('/faculties/programs').then(response => setPrograms(response.data?.programs || []))
   }, [showCreateModal, formData.role])
 
   const resetCreateForm = () => {
@@ -139,6 +145,7 @@ export default function UsersPage() {
       groupId: '',
       course: 1,
       program: '',
+      programId: '',
       faculty: '',
       position: '',
       department: '',
@@ -343,7 +350,7 @@ export default function UsersPage() {
 
         <Card className="overflow-hidden animate-fade-in stagger-2">
           <div className="custom-scrollbar overflow-x-auto overscroll-x-contain">
-            <table className="min-w-[1040px] table-fixed divide-y divide-[hsl(var(--border-light))]">
+            <table className="w-full table-fixed divide-y divide-[hsl(var(--border-light))]">
               <thead className="bg-lavender-50/50">
                 <tr>
                   <th className="w-[22%] px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
@@ -386,14 +393,18 @@ export default function UsersPage() {
                     <td className="px-6 py-4">
                       {user.student && (
                         <div className="text-sm">
-                          <div className="font-medium text-slate-900">Группа: {user.student.group.name}</div>
+                          <div className="font-medium text-slate-900">Группа: {user.student.group?.name || 'Без группы'}</div>
                           <div className="text-[hsl(var(--foreground-secondary))]">Курс: {user.student.course}</div>
                           <div className="text-[hsl(var(--foreground-secondary))]">№ {user.student.studentIdNumber}</div>
                         </div>
                       )}
                       {user.teacher && (
                         <div className="text-sm">
-                          <div className="font-medium text-slate-900">{user.teacher.position}</div>
+                          <div className="font-medium text-slate-900">
+                            {user.teacher.disciplinesTeaching?.length
+                              ? `Преподаватель: ${user.teacher.disciplinesTeaching.map(item => item.discipline.name).join(', ')}`
+                              : 'Преподаватель'}
+                          </div>
                           <div className="text-[hsl(var(--foreground-secondary))]">{user.teacher.department}</div>
                         </div>
                       )}
@@ -474,7 +485,7 @@ export default function UsersPage() {
 
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={(event) => {
-          if (event.target === event.currentTarget && !creating) setShowCreateModal(false)
+          if (event.target === event.currentTarget && !creating) { setShowCreateModal(false); resetCreateForm() }
         }}>
           <div className="custom-scrollbar max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-6 flex items-start justify-between gap-4">
@@ -482,7 +493,7 @@ export default function UsersPage() {
                 <h2 className="text-2xl font-bold text-slate-950">Создать пользователя</h2>
                 <p className="mt-1 text-sm text-slate-500">Заполните данные новой учётной записи</p>
               </div>
-              <button type="button" onClick={() => setShowCreateModal(false)} disabled={creating} className="text-2xl leading-none text-slate-400 hover:text-slate-700" aria-label="Закрыть">
+              <button type="button" onClick={() => { setShowCreateModal(false); resetCreateForm() }} disabled={creating} className="text-2xl leading-none text-slate-400 hover:text-slate-700" aria-label="Закрыть">
                 ×
               </button>
             </div>
@@ -491,10 +502,10 @@ export default function UsersPage() {
 
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <Input required type="email" placeholder="Email *" value={formData.email} onChange={(event) => setFormData({ ...formData, email: event.target.value })} />
-                <Input required minLength={6} type="password" placeholder="Пароль *" value={formData.password} onChange={(event) => setFormData({ ...formData, password: event.target.value })} />
-                <Input required placeholder="Имя *" value={formData.firstName} onChange={(event) => setFormData({ ...formData, firstName: event.target.value })} />
-                <Input required placeholder="Фамилия *" value={formData.lastName} onChange={(event) => setFormData({ ...formData, lastName: event.target.value })} />
+                <label><span className="mb-1 block text-sm font-medium">Email * <FieldHint text="Используется для входа в систему." /></span><Input required type="email" value={formData.email} onChange={(event) => setFormData({ ...formData, email: event.target.value })} /></label>
+                <label><span className="mb-1 block text-sm font-medium">Пароль * <FieldHint text="Не менее 6 символов." /></span><Input required minLength={6} type="password" value={formData.password} onChange={(event) => setFormData({ ...formData, password: event.target.value })} /></label>
+                <label><span className="mb-1 block text-sm font-medium">Имя * <FieldHint text="Имя пользователя." /></span><Input required value={formData.firstName} onChange={(event) => setFormData({ ...formData, firstName: event.target.value })} /></label>
+                <label><span className="mb-1 block text-sm font-medium">Фамилия * <FieldHint text="Фамилия пользователя." /></span><Input required value={formData.lastName} onChange={(event) => setFormData({ ...formData, lastName: event.target.value })} /></label>
                 <Input placeholder="Отчество" value={formData.patronymic} onChange={(event) => setFormData({ ...formData, patronymic: event.target.value })} />
                 <Input placeholder="Телефон" value={formData.phone} onChange={(event) => setFormData({ ...formData, phone: event.target.value })} />
               </div>
@@ -506,11 +517,26 @@ export default function UsersPage() {
 
               {formData.role === 'STUDENT' && (
                 <div className="grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
-                  <Input required placeholder="Номер зачётной книжки *" value={formData.studentIdNumber} onChange={(event) => setFormData({ ...formData, studentIdNumber: event.target.value })} />
+                  <label><span className="mb-1 block text-sm font-medium">Номер зачётной книжки * <FieldHint text="Уникальный номер студенческого документа." /></span><Input required value={formData.studentIdNumber} onChange={(event) => setFormData({ ...formData, studentIdNumber: event.target.value })} /></label>
                   <Select required value={formData.groupId} onChange={value => setFormData({ ...formData, groupId: value })} placeholder="Выберите группу *" options={groups.map(group => ({ value: group.id, label: group.name }))} />
                   <Select required value={String(formData.course)} onChange={value => setFormData({ ...formData, course: Number(value) })} options={[1, 2, 3, 4, 5, 6].map(course => ({ value: String(course), label: `${course} курс` }))} />
-                  <Input required placeholder="Направление подготовки *" value={formData.program} onChange={(event) => setFormData({ ...formData, program: event.target.value })} />
-                  <Input required placeholder="Факультет *" value={formData.faculty} onChange={(event) => setFormData({ ...formData, faculty: event.target.value })} />
+                  <label className="block"><span className="mb-1 block text-sm font-medium">Направление подготовки * <FieldHint text="Выберите образовательную программу студента." /></span><Select required value={formData.programId} onChange={value => { const program = programs.find(item => item.id === value); setFormData({ ...formData, programId: value, program: program?.name || '' }) }} placeholder="Выберите направление" options={programs.map(program => ({ value: program.id, label: program.name }))} /></label>
+                  <label><span className="mb-1 block text-sm font-medium">Факультет * <FieldHint text="Факультет, на котором обучается студент." /></span><Input required value={formData.faculty} onChange={(event) => setFormData({ ...formData, faculty: event.target.value })} /></label>
+                </div>
+              )}
+
+              {editUser && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={event => event.target === event.currentTarget && setEditUser(null)}>
+                  <form onSubmit={saveEditedUser} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+                    <h2 className="mb-5 text-2xl font-bold text-slate-950">Редактирование пользователя</h2>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="text-sm font-medium">Имя<Input required value={editData.firstName} onChange={event => setEditData({ ...editData, firstName: event.target.value })} /></label>
+                      <label className="text-sm font-medium">Фамилия<Input required value={editData.lastName} onChange={event => setEditData({ ...editData, lastName: event.target.value })} /></label>
+                      <label className="text-sm font-medium sm:col-span-2">Email<Input required type="email" value={editData.email} onChange={event => setEditData({ ...editData, email: event.target.value })} /></label>
+                      <label className="text-sm font-medium sm:col-span-2">Телефон<Input value={editData.phone} onChange={event => setEditData({ ...editData, phone: event.target.value })} /></label>
+                    </div>
+                    <div className="mt-6 flex justify-end gap-3"><Button type="button" variant="outline" onClick={() => setEditUser(null)}>Отмена</Button><Button type="submit">Сохранить</Button></div>
+                  </form>
                 </div>
               )}
               {editUser && (
@@ -533,15 +559,15 @@ export default function UsersPage() {
 
               {formData.role === 'TEACHER' && (
                 <div className="grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
-                  <Input required placeholder="Должность *" value={formData.position} onChange={(event) => setFormData({ ...formData, position: event.target.value })} />
-                  <Input required placeholder="Кафедра *" value={formData.department} onChange={(event) => setFormData({ ...formData, department: event.target.value })} />
+                  <Input placeholder="Должность (не заполняется)" value={formData.position} onChange={(event) => setFormData({ ...formData, position: event.target.value })} />
+                  <label><span className="mb-1 block text-sm font-medium">Кафедра * <FieldHint text="Кафедра преподавателя." /></span><Input required value={formData.department} onChange={(event) => setFormData({ ...formData, department: event.target.value })} /></label>
                   <Input placeholder="Учёная степень" value={formData.degree} onChange={(event) => setFormData({ ...formData, degree: event.target.value })} />
                   <Input placeholder="Учёное звание" value={formData.title} onChange={(event) => setFormData({ ...formData, title: event.target.value })} />
                 </div>
               )}
 
               <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
-                <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)} disabled={creating}>Отмена</Button>
+                <Button type="button" variant="outline" onClick={() => { setShowCreateModal(false); resetCreateForm() }} disabled={creating}>Отмена</Button>
                 <Button type="submit" disabled={creating}>{creating ? 'Создание...' : 'Создать пользователя'}</Button>
               </div>
             </form>

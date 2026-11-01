@@ -17,6 +17,7 @@ const createGroupSchema = z.object({
   name: z.string().min(1),
   course: z.number().int().min(1).max(6),
   program: z.string().min(1),
+  programId: z.string().optional(),
   faculty: z.string().min(1),
   facultyId: z.string().optional(),
   year: z.number().int()
@@ -380,7 +381,9 @@ export const removeStudentFromGroup = asyncHandler(async (req: Request, res: Res
     throw new AppError(400, 'Student is not in this group')
   }
 
-  // Примечание: в реальном приложении нужно решить, что делать с студентом без группы
-  // Пока просто выдаем ошибку, что студент должен быть в какой-то группе
-  throw new AppError(400, 'Cannot remove student from group. Please reassign to another group instead.')
+  await prisma.student.update({
+    where: { id: studentId },
+    data: { group: { disconnect: true } }
+  })
+  res.json({ success: true, message: 'Student removed from group successfully' })
 })

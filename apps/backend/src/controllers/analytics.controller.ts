@@ -8,6 +8,7 @@ export const getStudentProgress = asyncHandler(async (req: Request, res: Respons
     include: { group: { include: { disciplines: true } } }
   })
   if (!student) throw new AppError(404, 'Student profile not found')
+  if (!student.group) throw new AppError(400, 'Student is not assigned to a group')
 
   const disciplineIds = student.group.disciplines.map(item => item.disciplineId)
   const [labWorks, submissions] = await Promise.all([
@@ -106,7 +107,7 @@ export const exportTeacherGradebook = asyncHandler(async (req: Request, res: Res
     ['Студент', 'Группа', 'Дисциплина', 'Лабораторная', 'Попытка', 'Статус', 'Оценка', 'Дата сдачи'],
     ...submissions.map(item => [
       `${item.student.user.lastName} ${item.student.user.firstName}`,
-      item.student.group.name,
+      item.student.group?.name ?? 'Без группы',
       item.labWork.discipline.name,
       `ЛР №${item.labWork.number}: ${item.labWork.title}`,
       item.attemptNumber,

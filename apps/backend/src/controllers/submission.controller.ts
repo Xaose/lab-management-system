@@ -343,7 +343,7 @@ export const createSubmission = asyncHandler(async (req: Request, res: Response)
     }
   })
 
-  const hasAccess = studentGroup?.group.disciplines.some(
+  const hasAccess = studentGroup?.group?.disciplines.some(
     d => d.disciplineId === labWork.disciplineId
   )
 

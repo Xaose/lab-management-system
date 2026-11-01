@@ -22,13 +22,13 @@ const runDeadlineReminder = async () => {
     where: {
       status: 'PUBLISHED',
       dueDate: { gt: now, lte: windowEnd },
-      disciplineId: { in: [...new Set(activeStudents.flatMap(student => student.group.disciplines.map(item => item.disciplineId)))] }
+      disciplineId: { in: [...new Set(activeStudents.flatMap(student => student.group?.disciplines.map(item => item.disciplineId) || []))] }
     },
     select: { id: true, title: true, dueDate: true, disciplineId: true }
   })
 
   for (const student of activeStudents) {
-    const disciplineIds = new Set(student.group.disciplines.map(item => item.disciplineId))
+    const disciplineIds = new Set(student.group?.disciplines.map(item => item.disciplineId) || [])
     for (const labWork of labWorks) {
       if (!disciplineIds.has(labWork.disciplineId) || !labWork.dueDate) continue
 

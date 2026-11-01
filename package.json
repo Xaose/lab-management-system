@@ -20,6 +20,7 @@
     "db:seed": "tsx packages/database/prisma/seed.ts"
   },
   "devDependencies": {
+    "@types/pdf-parse": "^1.1.5",
     "concurrently": "^8.2.2",
     "typescript": "^5.3.3"
   },

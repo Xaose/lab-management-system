@@ -46,8 +46,9 @@ export default function AuthScene() {
       const graph = new Group()
       graph.add(nodes, network)
       scene.add(graph)
-      let spinX = 0.0003
-      let spinY = 0.0008
+      let spinX = 0.00035
+      let spinY = 0.0011
+      const basePositions = points.slice()
       let lastX = 0
       let lastY = 0
       let dragging = false
@@ -88,11 +89,20 @@ export default function AuthScene() {
       let frame = 0
       const animate = () => {
         frame = window.requestAnimationFrame(animate)
+        const time = performance.now() * 0.001
+        const positionAttribute = pointsGeometry.getAttribute('position')
+        for (let index = 0; index < basePositions.length; index += 3) {
+          positionAttribute.setX(index / 3, basePositions[index] + Math.sin(time * 0.8 + index) * 0.08)
+          positionAttribute.setY(index / 3, basePositions[index + 1] + Math.cos(time * 0.7 + index) * 0.08)
+          positionAttribute.setZ(index / 3, basePositions[index + 2] + Math.sin(time * 0.5 + index) * 0.05)
+        }
+        positionAttribute.needsUpdate = true
+        nodes.scale.setScalar(1 + Math.sin(time * 1.4) * 0.035)
         graph.rotation.y += spinY
         graph.rotation.x += spinX
         if (!dragging) {
-          spinY *= 0.995
-          spinX *= 0.995
+          spinY = spinY * 0.995 + 0.0011 * 0.005
+          spinX = spinX * 0.995 + 0.00035 * 0.005
         }
         renderer.render(scene, camera)
       }

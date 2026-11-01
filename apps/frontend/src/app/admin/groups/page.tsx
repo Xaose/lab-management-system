@@ -6,6 +6,9 @@ import { apiClient } from '@/lib/api-client'
 import { slugify } from '@/lib/slug'
 import { Select } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { FieldHint } from '@/components/ui/field-hint'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useProgressiveItems } from '@/lib/use-progressive-items'
 
 interface Group {
   id: string
@@ -26,21 +29,27 @@ export default function GroupsPage() {
   const [error, setError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [faculties, setFaculties] = useState<Array<{ id: string; name: string }>>([])
+  const [programs, setPrograms] = useState<Array<{ id: string; name: string }>>([])
   const [showFacultyModal, setShowFacultyModal] = useState(false)
+  const [showProgramModal, setShowProgramModal] = useState(false)
   const [facultyName, setFacultyName] = useState('')
+  const [programName, setProgramName] = useState('')
   const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     course: 1,
     program: '',
+    programId: '',
     faculty: '',
     facultyId: '',
     year: new Date().getFullYear()
   })
+  const visibleGroups = useProgressiveItems(groups)
 
   useEffect(() => {
     fetchGroups()
     apiClient.get('/faculties').then(response => setFaculties(response.data?.faculties || []))
+    apiClient.get('/faculties/programs').then(response => setPrograms(response.data?.programs || []))
   }, [])
 
   const fetchGroups = async () => {
@@ -54,6 +63,19 @@ export default function GroupsPage() {
     } finally {
       setLoading(false)
     }
+
+  }
+
+  const handleCreateProgram = async (event: React.FormEvent) => {
+    event.preventDefault()
+    try {
+      const response = await apiClient.post('/faculties/programs', { name: programName })
+      setPrograms(current => [...current, response.data.program].sort((a, b) => a.name.localeCompare(b.name)))
+      setProgramName('')
+      setShowProgramModal(false)
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Ошибка создания направления')
+    }
   }
 
   const handleCreateGroup = async (e: React.FormEvent) => {
@@ -66,6 +88,7 @@ export default function GroupsPage() {
         name: '',
         course: 1,
         program: '',
+        programId: '',
         faculty: '',
         facultyId: '',
         year: new Date().getFullYear()
@@ -100,8 +123,11 @@ export default function GroupsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-500">Загрузка...</div>
+      <div className="dashboard-page min-h-screen p-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-6 flex items-center justify-between"><Skeleton className="h-10 w-72" /><Skeleton className="h-11 w-40 rounded-lg" /></div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">{[1, 2, 3, 4, 5, 6].map(item => <Skeleton key={item} className="h-64 rounded-[1.25rem]" />)}</div>
+        </div>
       </div>
     )
   }
@@ -136,10 +162,20 @@ export default function GroupsPage() {
             </form>
           </div>
         )}
+        {showProgramModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={event => event.target === event.currentTarget && setShowProgramModal(false)}>
+            <form onSubmit={handleCreateProgram} className="dashboard-card w-full max-w-md bg-white/95 p-6">
+              <h2 className="mb-4 text-xl font-bold text-slate-950">Новое направление подготовки</h2>
+              <input required value={programName} onChange={event => setProgramName(event.target.value)} placeholder="Название направления" className="w-full px-4 py-3" />
+              <div className="mt-5 flex gap-3"><button type="button" onClick={() => setShowProgramModal(false)} className="flex-1 rounded-xl border px-4 py-2.5">Отмена</button><button type="submit" className="flex-1 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 font-semibold text-white">Создать</button></div>
+            </form>
+          </div>
+        )}
 
         {/* Сетка групп */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {groups.map((group) => (
+          {groups.length > 0 && visibleGroups.length === 0 && [1, 2, 3].map(item => <Skeleton key={item} className="h-64 rounded-[1.25rem]" />)}
+          {visibleGroups.map((group) => (
             <div key={group.id} className="dashboard-card-hover p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
@@ -216,7 +252,7 @@ export default function GroupsPage() {
       {/* Модальное окно создания группы */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Создать группу</h2>
 
             <form onSubmit={handleCreateGroup} className="space-y-4">
@@ -243,16 +279,12 @@ export default function GroupsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Направление подготовки *
+                  Направление подготовки * <FieldHint text="Выберите образовательную программу, по которой обучается группа." />
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.program}
-                  onChange={(e) => setFormData({ ...formData, program: e.target.value })}
-                  placeholder="Информационные системы и технологии"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
+                <div className="flex gap-2">
+                  <Select required value={formData.programId} onChange={value => { const program = programs.find(item => item.id === value); setFormData({ ...formData, programId: value, program: program?.name || '' }) }} placeholder="Выберите направление" className="flex-1" options={programs.map(program => ({ value: program.id, label: program.name }))} />
+                  <button type="button" onClick={() => setShowProgramModal(true)} className="rounded-xl border border-lavender-300 px-3 text-sm font-semibold text-lavender-800">+</button>
+                </div>
               </div>
 
               <div>

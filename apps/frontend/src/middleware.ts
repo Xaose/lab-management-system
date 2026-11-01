@@ -47,7 +47,9 @@ export function middleware(request: NextRequest) {
 
   // Если маршрут публичный, пропускаем
   if (isPublicRoute) {
-    return NextResponse.next()
+    const response = NextResponse.next()
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+    return response
   }
 
   // Проверка авторизации для защищённых маршрутов

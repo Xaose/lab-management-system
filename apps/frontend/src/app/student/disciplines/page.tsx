@@ -7,6 +7,7 @@ import { slugify } from '@/lib/slug'
 import { Card, CardHover } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useProgressiveItems } from '@/lib/use-progressive-items'
 
 interface Discipline {
   id: string
@@ -23,6 +24,7 @@ interface Discipline {
 export default function StudentDisciplinesPage() {
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
   const [loading, setLoading] = useState(true)
+  const visibleDisciplines = useProgressiveItems(disciplines)
 
   useEffect(() => {
     loadDisciplines()
@@ -85,7 +87,8 @@ export default function StudentDisciplinesPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {disciplines.map((discipline, index) => (
+            {disciplines.length > 0 && visibleDisciplines.length === 0 && [1, 2, 3].map(item => <Skeleton key={item} className="h-56" />)}
+            {visibleDisciplines.map((discipline, index) => (
               <Link
                 key={discipline.id}
                 href={`/student/disciplines/${slugify(discipline.name)}`}

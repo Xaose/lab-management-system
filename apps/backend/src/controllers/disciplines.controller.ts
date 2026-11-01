@@ -20,6 +20,7 @@ const createDisciplineSchema = z.object({
   year: z.number().int(),
   hours: z.number().int().min(1),
   teacherId: z.string().optional(),
+  teacherIds: z.array(z.string()).min(1).optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional()
 })
 
@@ -311,21 +312,26 @@ export const createDiscipline = asyncHandler(async (req: Request, res: Response)
   let createdById: string
 
   if (user.role === 'ADMIN') {
-    if (!validatedData.teacherId) {
+    const assignedTeacherIds = validatedData.teacherIds || (validatedData.teacherId ? [validatedData.teacherId] : [])
+    if (assignedTeacherIds.length === 0) {
       throw new AppError(400, 'Admin must assign a teacher to create discipline')
     }
-    const teacher = await prisma.teacher.findUnique({ where: { id: validatedData.teacherId } })
-    if (!teacher) throw new AppError(404, 'Teacher not found')
-    createdById = teacher.id
+    const teachers = await prisma.teacher.findMany({ where: { id: { in: assignedTeacherIds } } })
+    if (teachers.length !== assignedTeacherIds.length) throw new AppError(404, 'Teacher not found')
+    createdById = teachers[0].id
   } else {
     createdById = user.teacher!.id
   }
 
-  const { teacherId: _teacherId, ...disciplineData } = validatedData
+  const { teacherId: _teacherId, teacherIds: _teacherIds, ...disciplineData } = validatedData
+  const assignedTeacherIds = validatedData.teacherIds || (validatedData.teacherId ? [validatedData.teacherId] : [createdById])
   const discipline = await prisma.discipline.create({
     data: {
       ...disciplineData,
-      createdById
+      createdById,
+      teachers: {
+        create: assignedTeacherIds.map(teacherId => ({ teacherId }))
+      }
     },
     include: {
       createdBy: {

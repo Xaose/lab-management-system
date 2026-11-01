@@ -6,6 +6,9 @@ import { apiClient } from '@/lib/api-client'
 import { slugify } from '@/lib/slug'
 import { Select } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { FieldHint } from '@/components/ui/field-hint'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useProgressiveItems } from '@/lib/use-progressive-items'
 
 type DisciplineStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
 
@@ -44,7 +47,8 @@ export default function DisciplinesPage() {
   const [deleteDisciplineId, setDeleteDisciplineId] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [teachers, setTeachers] = useState<Array<{ id: string; firstName: string; lastName: string }>>([])
-  const [createData, setCreateData] = useState({ name: '', description: '', semester: 1, year: new Date().getFullYear(), hours: 36, teacherId: '' })
+  const [createData, setCreateData] = useState({ name: '', description: '', semester: 1, year: new Date().getFullYear(), hours: 36, teacherIds: [] as string[] })
+  const visibleDisciplines = useProgressiveItems(disciplines)
 
   const fetchDisciplines = useCallback(async () => {
     try {
@@ -78,9 +82,9 @@ export default function DisciplinesPage() {
   const handleCreateDiscipline = async (event: React.FormEvent) => {
     event.preventDefault()
     try {
-      await apiClient.post('/disciplines', createData)
+      await apiClient.post('/disciplines', { ...createData, teacherIds: createData.teacherIds })
       setShowCreateModal(false)
-      setCreateData({ name: '', description: '', semester: 1, year: new Date().getFullYear(), hours: 36, teacherId: '' })
+      setCreateData({ name: '', description: '', semester: 1, year: new Date().getFullYear(), hours: 36, teacherIds: [] })
       await fetchDisciplines()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Ошибка создания дисциплины')
@@ -116,8 +120,12 @@ export default function DisciplinesPage() {
 
   if (loading && disciplines.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-500">Загрузка...</div>
+      <div className="dashboard-page min-h-screen p-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-6 flex items-center justify-between"><Skeleton className="h-10 w-80" /><Skeleton className="h-11 w-48 rounded-lg" /></div>
+          <Skeleton className="mb-6 h-36 w-full rounded-[1.25rem]" />
+          <div className="space-y-4">{[1, 2, 3].map(item => <Skeleton key={item} className="h-40 w-full rounded-[1.25rem]" />)}</div>
+        </div>
       </div>
     )
   }
@@ -188,13 +196,19 @@ export default function DisciplinesPage() {
 
         {/* Список дисциплин */}
         <div className="space-y-4">
-          {disciplines.map((discipline) => (
+          {disciplines.length > 0 && visibleDisciplines.length === 0 && [1, 2].map(item => <Skeleton key={item} className="h-40 w-full rounded-[1.25rem]" />)}
+          {visibleDisciplines.map((discipline) => (
             <div key={discipline.id} className="dashboard-card-hover p-6">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-xl font-bold text-gray-900">{discipline.name}</h3>
                     {getStatusBadge(discipline.status)}
+                    {discipline.status === 'DRAFT' && (
+                      <button onClick={() => apiClient.put(`/disciplines/${discipline.id}`, { status: 'PUBLISHED' }).then(fetchDisciplines).catch(() => setError('Ошибка публикации дисциплины'))} className="text-xs font-semibold text-green-700 hover:underline">
+                        Опубликовать
+                      </button>
+                    )}
                   </div>
 
                   {discipline.description && (
@@ -241,41 +255,37 @@ export default function DisciplinesPage() {
                     Удалить
                   </button>
                 </div>
-                <ConfirmDialog
-                  open={Boolean(deleteDisciplineId)}
-                  title="Удалить дисциплину?"
-                  message="Дисциплина будет удалена. Убедитесь, что в ней нет лабораторных работ."
-                  confirmLabel="Удалить"
-                  danger
-                  onCancel={() => setDeleteDisciplineId(null)}
-                  onConfirm={() => {
-                    if (deleteDisciplineId) void handleDeleteDiscipline(deleteDisciplineId)
-                    setDeleteDisciplineId(null)
-                  }}
-                />
-                {showCreateModal && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-                    <form onSubmit={handleCreateDiscipline} className="dashboard-card w-full max-w-xl bg-white/95 p-6">
-                      <h2 className="text-2xl font-bold text-slate-950">Создать дисциплину</h2>
-                      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                        <input required placeholder="Название" value={createData.name} onChange={event => setCreateData({ ...createData, name: event.target.value })} className="rounded-xl border border-slate-200 px-4 py-3 sm:col-span-2" />
-                        <textarea placeholder="Описание" value={createData.description} onChange={event => setCreateData({ ...createData, description: event.target.value })} className="rounded-xl border border-slate-200 px-4 py-3 sm:col-span-2" />
-                        <input required type="number" min="1" placeholder="Семестр" value={createData.semester} onChange={event => setCreateData({ ...createData, semester: Number(event.target.value) })} className="rounded-xl border border-slate-200 px-4 py-3" />
-                        <input required type="number" min="2000" placeholder="Год" value={createData.year} onChange={event => setCreateData({ ...createData, year: Number(event.target.value) })} className="rounded-xl border border-slate-200 px-4 py-3" />
-                        <input required type="number" min="1" placeholder="Часы" value={createData.hours} onChange={event => setCreateData({ ...createData, hours: Number(event.target.value) })} className="rounded-xl border border-slate-200 px-4 py-3" />
-                        <Select required value={createData.teacherId} onChange={value => setCreateData({ ...createData, teacherId: value })} placeholder="Ответственный преподаватель" options={teachers.map(teacher => ({ value: teacher.id, label: `${teacher.lastName} ${teacher.firstName}` }))} />
-                      </div>
-                      <div className="mt-6 flex gap-3">
-                        <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 font-semibold text-slate-700">Отмена</button>
-                        <button type="submit" className="flex-1 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 font-semibold text-white">Создать</button>
-                      </div>
-                    </form>
-                  </div>
-                )}
               </div>
             </div>
           ))}
         </div>
+
+        <ConfirmDialog
+          open={Boolean(deleteDisciplineId)}
+          title="Удалить дисциплину?"
+          message="Дисциплина будет удалена. Убедитесь, что в ней нет лабораторных работ."
+          confirmLabel="Удалить"
+          danger
+          onCancel={() => setDeleteDisciplineId(null)}
+          onConfirm={() => { if (deleteDisciplineId) void handleDeleteDiscipline(deleteDisciplineId); setDeleteDisciplineId(null) }}
+        />
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm" onMouseDown={event => event.target === event.currentTarget && setShowCreateModal(false)}>
+            <form onSubmit={handleCreateDiscipline} className="dashboard-card max-h-[90vh] w-full max-w-xl overflow-y-auto bg-white/95 p-6">
+              <h2 className="text-2xl font-bold text-slate-950">Создать дисциплину</h2>
+              <p className="mt-1 text-sm text-slate-500">Заполните основные сведения и назначьте преподавателей.</p>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <label className="sm:col-span-2"><span className="mb-1 block text-sm font-medium">Название <FieldHint text="Название дисциплины, которое увидят студенты." /></span><input required value={createData.name} onChange={event => setCreateData({ ...createData, name: event.target.value })} className="w-full px-4 py-3" /></label>
+                <label className="sm:col-span-2"><span className="mb-1 block text-sm font-medium">Описание <FieldHint text="Кратко опишите содержание дисциплины." /></span><textarea value={createData.description} onChange={event => setCreateData({ ...createData, description: event.target.value })} className="w-full px-4 py-3" /></label>
+                <label><span className="mb-1 block text-sm font-medium">Семестр <FieldHint text="Номер семестра, в котором изучается дисциплина." /></span><input required type="number" min="1" value={createData.semester} onChange={event => setCreateData({ ...createData, semester: Number(event.target.value) })} className="w-full px-4 py-3" /></label>
+                <label><span className="mb-1 block text-sm font-medium">Учебный год <FieldHint text="Год начала учебного периода." /></span><input required type="number" min="2000" value={createData.year} onChange={event => setCreateData({ ...createData, year: Number(event.target.value) })} className="w-full px-4 py-3" /></label>
+                <label><span className="mb-1 block text-sm font-medium">Количество часов <FieldHint text="Общее количество часов по дисциплине." /></span><input required type="number" min="1" value={createData.hours} onChange={event => setCreateData({ ...createData, hours: Number(event.target.value) })} className="w-full px-4 py-3" /></label>
+                <label><span className="mb-1 block text-sm font-medium">Преподаватели <FieldHint text="Можно выбрать нескольких преподавателей." /></span><select required multiple value={createData.teacherIds} onChange={event => setCreateData({ ...createData, teacherIds: Array.from(event.target.selectedOptions, option => option.value) })} className="h-28 w-full px-3 py-2">{teachers.map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.lastName} {teacher.firstName}</option>)}</select></label>
+              </div>
+              <div className="mt-6 flex gap-3"><button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 rounded-xl border px-4 py-2.5 font-semibold text-slate-700">Отмена</button><button type="submit" className="flex-1 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 font-semibold text-white">Создать</button></div>
+            </form>
+          </div>
+        )}
 
         {disciplines.length === 0 && !loading && (
           <div className="dashboard-card p-12 text-center">

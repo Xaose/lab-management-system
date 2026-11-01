@@ -20,11 +20,12 @@ const createUserSchema = z.object({
     groupId: z.string(),
     course: z.number().int().min(1).max(6),
     program: z.string(),
+    programId: z.string().optional(),
     faculty: z.string()
   }).optional(),
   // Дополнительные поля для преподавателей
   teacherData: z.object({
-    position: z.string(),
+    position: z.string().optional(),
     department: z.string(),
     degree: z.string().optional(),
     title: z.string().optional()
@@ -118,7 +119,14 @@ export const getUsers = asyncHandler(async (req: Request, res: Response) => {
             position: true,
             department: true,
             degree: true,
-            title: true
+            title: true,
+            disciplinesTeaching: {
+              select: {
+                discipline: {
+                  select: { name: true }
+                }
+              }
+            }
           }
         },
         admin: {
@@ -189,7 +197,14 @@ export const getUserById = asyncHandler(async (req: Request, res: Response) => {
           position: true,
           department: true,
           degree: true,
-          title: true
+          title: true,
+          disciplinesTeaching: {
+            select: {
+              discipline: {
+                select: { name: true }
+              }
+            }
+          }
         }
       },
       admin: {
@@ -266,6 +281,7 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
                 groupId: validatedData.studentData.groupId,
                 course: validatedData.studentData.course,
                 program: validatedData.studentData.program,
+                programId: validatedData.studentData.programId,
                 faculty: validatedData.studentData.faculty
               }
             }
@@ -275,7 +291,7 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
         ? {
             teacher: {
               create: {
-                position: validatedData.teacherData.position,
+                position: validatedData.teacherData.position || null,
                 department: validatedData.teacherData.department,
                 degree: validatedData.teacherData.degree,
                 title: validatedData.teacherData.title

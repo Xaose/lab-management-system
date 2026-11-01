@@ -5,7 +5,10 @@ import {
   uploadSubmissionFile,
   uploadLabWorkFile,
   downloadFile,
-  deleteFile
+  deleteFile,
+  getReusableLabWorkFiles,
+  reuseLabWorkFile,
+  analyzeLabWorkDocument
 } from '../controllers/file.controller'
 
 const router = Router()
@@ -16,6 +19,9 @@ router.use(authenticate)
 // Upload files
 router.post('/submissions/:id/upload', authorize('STUDENT'), uploadSingle, uploadSubmissionFile)
 router.post('/lab-works/:id/upload', authorize('TEACHER', 'ADMIN'), uploadSingle, uploadLabWorkFile)
+router.get('/reusable-lab-work-files', authorize('TEACHER', 'ADMIN'), getReusableLabWorkFiles)
+router.post('/lab-works/:id/reuse', authorize('TEACHER', 'ADMIN'), reuseLabWorkFile)
+router.post('/lab-works/analyze-document', authorize('TEACHER', 'ADMIN'), uploadSingle, analyzeLabWorkDocument)
 
 // Download file
 router.get('/:id/download', downloadFile)

@@ -36,18 +36,23 @@ export default function AdminDisciplineDetailsPage() {
   const [groupId, setGroupId] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [teachers, setTeachers] = useState<Array<{ id: string; label: string }>>([])
+  const [teacherId, setTeacherId] = useState('')
 
   const loadData = useCallback(async () => {
     try {
-      const [disciplineResponse, groupsResponse] = await Promise.all([
+      const [disciplineResponse, groupsResponse, teachersResponse] = await Promise.all([
         apiClient.get(`/disciplines/${id}`),
-        apiClient.get('/groups')
+        apiClient.get('/groups'),
+        apiClient.get('/users?role=TEACHER')
       ])
       setDiscipline(disciplineResponse.data?.discipline || null)
       setGroups(groupsResponse.data?.groups || [])
+      setTeachers((teachersResponse.data?.users || []).filter((user: any) => user.teacher?.id).map((user: any) => ({ id: user.teacher.id, label: `${user.lastName} ${user.firstName}` })))
     } catch (err: any) {
       setError(err.response?.data?.error || 'Не удалось загрузить дисциплину')
     }
+
   }, [id])
 
   useEffect(() => {
@@ -66,6 +71,22 @@ export default function AdminDisciplineDetailsPage() {
       await loadData()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Не удалось назначить группу')
+    } finally {
+      setSaving(false)
+    }
+
+  }
+
+  const assignTeacher = async () => {
+    if (!teacherId || !discipline) return
+    setSaving(true)
+    setError('')
+    try {
+      await apiClient.post(`/disciplines/${discipline.id}/teachers`, { teacherIds: [teacherId] })
+      setTeacherId('')
+      await loadData()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Не удалось назначить преподавателя')
     } finally {
       setSaving(false)
     }
@@ -97,6 +118,15 @@ export default function AdminDisciplineDetailsPage() {
               <div><dt className="text-slate-500">Часы</dt><dd className="font-medium">{discipline.hours}</dd></div>
               <div><dt className="text-slate-500">Создатель</dt><dd className="font-medium">{discipline.createdBy.user.lastName} {discipline.createdBy.user.firstName}</dd></div>
             </dl>
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="mb-4 text-lg font-semibold">Ответственные преподаватели</h2>
+            <div className="mb-4 space-y-2">
+              {discipline.teachers.map(({ teacher }) => <div key={teacher.id} className="rounded-xl bg-slate-50 p-3 font-medium">{teacher.user.lastName} {teacher.user.firstName}</div>)}
+              {discipline.teachers.length === 0 && <p className="text-sm text-slate-500">Преподаватели не назначены.</p>}
+            </div>
+            <div className="flex gap-2"><Select value={teacherId} onChange={setTeacherId} placeholder="Выберите преподавателя" className="min-w-0 flex-1" options={teachers.filter(teacher => !discipline.teachers.some(item => item.teacher.id === teacher.id)).map(teacher => ({ value: teacher.id, label: teacher.label }))} /><Button size="sm" onClick={assignTeacher} disabled={!teacherId || saving}>Назначить</Button></div>
           </Card>
 
           <Card className="p-5">

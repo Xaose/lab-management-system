@@ -16,6 +16,7 @@ async function resolveLabWorkId(value: string): Promise<string | null> {
 const createLabWorkSchema = z.object({
   disciplineId: z.string(),
   number: z.number().int().positive(),
+  section: z.string().trim().max(120).nullable().optional(),
   title: z.string().min(1),
   description: z.string(),
   requirements: z.string().optional(),
@@ -90,7 +91,7 @@ export const getLabWorks = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Фильтр по статусу
-  if (status) {
+  if (status && userRole !== 'STUDENT') {
     where.status = status
   } else if (userRole === 'STUDENT') {
     // Студенты видят только опубликованные работы
@@ -114,6 +115,9 @@ export const getLabWorks = asyncHandler(async (req: Request, res: Response) => {
 
     if (!student) {
       throw new AppError(404, 'Student profile not found')
+    }
+    if (!student.group) {
+      throw new AppError(403, 'Student is not assigned to a group')
     }
 
     const disciplineIds = student.group.disciplines.map(d => d.disciplineId)
@@ -205,7 +209,7 @@ export const getLabWork = asyncHandler(async (req: Request, res: Response) => {
       }
     })
 
-    const hasAccess = student?.group.disciplines.some(
+    const hasAccess = student?.group?.disciplines.some(
       d => d.disciplineId === labWork.disciplineId
     )
 

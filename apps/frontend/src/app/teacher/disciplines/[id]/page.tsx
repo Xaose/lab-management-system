@@ -16,6 +16,7 @@ interface Discipline {
   labWorks: Array<{
     id: string
     number: number
+    section: string | null
     title: string
     status: string
     dueDate: string | null
@@ -28,6 +29,7 @@ export default function TeacherDisciplinePage() {
   const router = useRouter()
   const [discipline, setDiscipline] = useState<Discipline | null>(null)
   const [loading, setLoading] = useState(true)
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   useEffect(() => {
     apiClient.get(`/disciplines/${id}`)
@@ -35,6 +37,20 @@ export default function TeacherDisciplinePage() {
       .catch(() => setDiscipline(null))
       .finally(() => setLoading(false))
   }, [id])
+
+  const toggleVisibility = async (lab: Discipline['labWorks'][number]) => {
+    setSavingId(lab.id)
+    try {
+      const status = lab.status === 'PUBLISHED' ? 'HIDDEN' : 'PUBLISHED'
+      await apiClient.put(`/lab-works/${lab.id}`, { status })
+      setDiscipline(current => current ? {
+        ...current,
+        labWorks: current.labWorks.map(item => item.id === lab.id ? { ...item, status } : item)
+      } : current)
+    } finally {
+      setSavingId(null)
+    }
+  }
 
   if (loading) return <div className="dashboard-page flex min-h-screen items-center justify-center text-slate-600">Загрузка...</div>
   if (!discipline) {
@@ -72,25 +88,28 @@ export default function TeacherDisciplinePage() {
           <Card className="p-12 text-center text-slate-500">В этой дисциплине пока нет лабораторных работ.</Card>
         ) : (
           <div className="space-y-4">
-            {discipline.labWorks.map(lab => (
-              <Card key={lab.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="mb-2 flex items-center gap-3">
-                    <Badge>ЛР №{lab.number}</Badge>
-                    <Badge variant={lab.status === 'PUBLISHED' ? 'accepted' : 'secondary'}>
-                      {lab.status === 'PUBLISHED' ? 'Опубликована' : 'Черновик'}
-                    </Badge>
-                  </div>
-                  <h2 className="font-semibold text-slate-900">{lab.title}</h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Сдано работ: {lab._count.submissions}
-                    {lab.dueDate ? ` · срок ${new Date(lab.dueDate).toLocaleDateString('ru-RU')}` : ' · без срока'}
-                  </p>
+            {Object.entries(discipline.labWorks.reduce<Record<string, typeof discipline.labWorks>>((groups, lab) => {
+              const key = lab.section?.trim() || 'Без раздела'
+              ;(groups[key] ||= []).push(lab)
+              return groups
+            }, {})).map(([section, labs]) => (
+              <details key={section} open className="dashboard-card overflow-hidden">
+                <summary className="cursor-pointer list-none px-5 py-4 font-semibold text-slate-900">{section} <span className="ml-2 text-sm font-normal text-slate-500">({labs.length})</span></summary>
+                <div className="space-y-3 border-t border-white/60 p-4">
+                  {labs.map(lab => (
+                    <div key={lab.id} className="flex flex-col gap-4 rounded-xl bg-white/45 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div><div className="mb-2 flex items-center gap-3"><Badge>ЛР №{lab.number}</Badge><Badge variant={lab.status === 'PUBLISHED' ? 'accepted' : 'secondary'}>{lab.status === 'PUBLISHED' ? 'Опубликована' : 'Черновик'}</Badge></div><h2 className="font-semibold text-slate-900">{lab.title}</h2><p className="mt-1 text-sm text-slate-500">Сдано работ: {lab._count.submissions}{lab.dueDate ? ` · срок ${new Date(lab.dueDate).toLocaleDateString('ru-RU')}` : ' · без срока'}</p></div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" onClick={() => toggleVisibility(lab)} disabled={savingId === lab.id}>
+                          {savingId === lab.id ? 'Сохранение...' : lab.status === 'PUBLISHED' ? 'Скрыть' : 'Показать'}
+                        </Button>
+                        <Link href={`/teacher/lab-works/${lab.id}/edit`}><Button variant="outline">Редактировать</Button></Link>
+                        <Link href={`/teacher/submissions?labWorkId=${lab.id}`}><Button variant="outline">Открыть работы</Button></Link>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <Link href={`/teacher/submissions?labWorkId=${lab.id}`}>
-                  <Button variant="outline">Открыть работы</Button>
-                </Link>
-              </Card>
+              </details>
             ))}
           </div>
         )}
